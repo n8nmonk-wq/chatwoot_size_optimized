@@ -1,0 +1,87 @@
+﻿services:
+  rails:
+    image: chatwoot/chatwoot:latest
+    env_file: .env
+    volumes:
+      - storage_data:/app/storage
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    ports:
+      - '3005:3000'
+    environment:
+      - NODE_ENV=production
+      - RAILS_ENV=production
+      - INSTALLATION_ENV=docker
+    entrypoint: docker/entrypoints/rails.sh
+    command: ['bundle', 'exec', 'rails', 's', '-p', '3000', '-b', '0.0.0.0']
+    restart: always
+    deploy:
+      resources:
+        limits:
+          memory: 900M
+
+  sidekiq:
+    image: chatwoot/chatwoot:latest
+    env_file: .env
+    volumes:
+      - storage_data:/app/storage
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      - NODE_ENV=production
+      - RAILS_ENV=production
+      - INSTALLATION_ENV=docker
+    command: ['bundle', 'exec', 'sidekiq', '-C', 'config/sidekiq.yml']
+    restart: always
+    deploy:
+      resources:
+        limits:
+          memory: 600M
+
+  postgres:
+    image: pgvector/pgvector:pg16
+    restart: always
+    command: postgres -c shared_buffers=128MB -c max_connections=50 -c work_mem=4MB -c effective_cache_size=256MB
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_DB=chatwoot_production
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    deploy:
+      resources:
+        limits:
+          memory: 300M
+
+  redis:
+    image: redis:alpine
+    restart: always
+    command: ["sh", "-c", "redis-server --requirepass \"$REDIS_PASSWORD\" --maxmemory 128mb --maxmemory-policy allkeys-lru"]
+    env_file: .env
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "$REDIS_PASSWORD", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    deploy:
+      resources:
+        limits:
+          memory: 150M
+
+volumes:
+  storage_data:
+  postgres_data:
+  redis_data:
