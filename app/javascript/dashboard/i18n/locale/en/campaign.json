@@ -184,9 +184,9 @@
             "VARIABLE_PLACEHOLDER": "Enter value for {variable}"
           },
           "AUDIENCE": {
-            "LABEL": "Audience",
-            "PLACEHOLDER": "Select the customer labels",
-            "ERROR": "Audience is required"
+            "LABEL": "Contact Group",
+            "PLACEHOLDER": "Select contact group (e.g. wa_batch_1)",
+            "ERROR": "Contact Group is required"
           },
           "SCHEDULED_AT": {
             "LABEL": "Scheduled time",

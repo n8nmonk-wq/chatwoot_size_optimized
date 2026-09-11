@@ -92,6 +92,48 @@ const fetchAttributes = () => {
   store.dispatch('attributes/get');
 };
 
+const contactLabels = useMapGetter('contactLabels/getContactLabels');
+
+const currentContactLabels = computed(() => {
+  return contactLabels.value(route.params.contactId) || [];
+});
+
+const isUnsubscribed = computed(() => {
+  return (
+    currentContactLabels.value.includes('unsubscribed') ||
+    currentContactLabels.value.includes('opted_out')
+  );
+});
+
+const toggleContactUnsubscribe = async () => {
+  const contactId = route.params.contactId;
+  const currentLabels = [...currentContactLabels.value];
+  const unsubscribed = isUnsubscribed.value;
+
+  let newLabels;
+  if (unsubscribed) {
+    newLabels = currentLabels.filter(
+      l => l !== 'unsubscribed' && l !== 'opted_out' && l !== 'dnd'
+    );
+  } else {
+    newLabels = [...new Set([...currentLabels, 'unsubscribed'])];
+  }
+
+  try {
+    await store.dispatch('contactLabels/update', {
+      contactId,
+      labels: newLabels,
+    });
+    useAlert(
+      unsubscribed
+        ? t('CONTACTS_LAYOUT.HEADER.ACTIONS.RESUBSCRIBE_SUCCESS')
+        : t('CONTACTS_LAYOUT.HEADER.ACTIONS.UNSUBSCRIBE_SUCCESS')
+    );
+  } catch (error) {
+    useAlert(t('CONTACT_PANEL.LABELS.CONTACT.ERROR'));
+  }
+};
+
 const toggleContactBlock = async isBlocked => {
   const ALERT_MESSAGES = {
     success: {
@@ -124,6 +166,9 @@ onMounted(() => {
   fetchContactNotes();
   fetchContactConversations();
   fetchAttributes();
+  if (route.params.contactId) {
+    store.dispatch('contactLabels/get', route.params.contactId);
+  }
 });
 </script>
 
@@ -137,8 +182,10 @@ onMounted(() => {
       is-detail-view
       :show-pagination-footer="false"
       :is-updating="isUpdatingContact"
+      :is-unsubscribed="isUnsubscribed"
       @go-to-contacts-list="goToContactsList"
       @toggle-block="toggleContactBlock"
+      @toggle-unsubscribe="toggleContactUnsubscribe"
     >
       <div
         v-if="showSpinner"

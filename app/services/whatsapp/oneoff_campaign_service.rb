@@ -64,8 +64,13 @@ class Whatsapp::OneoffCampaignService
   end
 
   def process_audience(audience_labels)
-    contacts = campaign.account.contacts.tagged_with(audience_labels, any: true)
-    Rails.logger.info "Processing #{contacts.count} contacts for campaign #{campaign.id}"
+    unsubscribed_tags = %w[unsubscribed opted_out dnd]
+    contacts = campaign.account.contacts
+                        .where(blocked: false)
+                        .tagged_with(audience_labels, any: true)
+                        .without_any_tags(unsubscribed_tags)
+
+    Rails.logger.info "Processing #{contacts.count} contacts for campaign #{campaign.id} (excluding unsubscribed/blocked)"
 
     contacts.each { |contact| process_contact(contact) }
 

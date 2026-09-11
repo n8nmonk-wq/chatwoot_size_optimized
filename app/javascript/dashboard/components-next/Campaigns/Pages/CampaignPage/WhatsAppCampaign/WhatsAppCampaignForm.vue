@@ -71,14 +71,17 @@ const inboxOptions = computed(() =>
 const templateOptions = computed(() => {
   if (!state.inboxId) return [];
   const templates = formState.getFilteredWhatsAppTemplates.value(state.inboxId);
-  return templates.map(template => {
+  return templates.map((template, index) => {
     // Create a more user-friendly label from template name
     const friendlyName = template.name
       .replace(/_/g, ' ')
       .replace(/\b\w/g, l => l.toUpperCase());
 
+    const templateValue =
+      template.id || `${template.name}_${template.language || 'en'}_${index}`;
+
     return {
-      value: template.id,
+      value: templateValue,
       label: `${friendlyName} (${template.language || 'en'})`,
       template: template,
     };

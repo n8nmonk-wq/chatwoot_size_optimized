@@ -44,7 +44,9 @@
         "PLACEHOLDER": "Search labels",
         "NO_RESULT": "No labels found",
         "CREATE_LABEL": "Create new label"
-      }
+      },
+      "MOVE_TO_GROUP": "Move to Group",
+      "MOVE_GROUP_SUCCESS": "Contact moved to {group} successfully."
     },
     "MERGE_CONTACT": "Merge contact",
     "CONTACT_ACTIONS": "Contact actions",
@@ -301,10 +303,14 @@
       "SEND_MESSAGE": "Send message",
       "BLOCK_CONTACT": "Block contact",
       "UNBLOCK_CONTACT": "Unblock contact",
+      "UNSUBSCRIBE_CONTACT": "Unsubscribe",
+      "RESUBSCRIBE_CONTACT": "Resubscribe",
       "BREADCRUMB": {
         "CONTACTS": "Contacts"
       },
       "ACTIONS": {
+        "UNSUBSCRIBE_SUCCESS": "Contact marked as unsubscribed and opted out from campaigns.",
+        "RESUBSCRIBE_SUCCESS": "Contact resubscribed successfully.",
         "CONTACT_CREATION": {
           "ADD_CONTACT": "Add contact",
           "EXPORT_CONTACT": "Export contacts",
@@ -586,12 +592,15 @@
     "LOAD_MORE": "Load more"
   },
   "CONTACTS_BULK_ACTIONS": {
-    "ASSIGN_LABELS": "Assign Labels",
-    "REMOVE_LABELS": "Remove Labels",
-    "ASSIGN_LABELS_SUCCESS": "Labels assigned successfully.",
-    "ASSIGN_LABELS_FAILED": "Failed to assign labels",
-    "REMOVE_LABELS_SUCCESS": "Labels removed successfully.",
-    "REMOVE_LABELS_FAILED": "Failed to remove labels",
+    "ASSIGN_LABELS": "Assign to Group",
+    "REMOVE_LABELS": "Remove from Group",
+    "UNSUBSCRIBE": "Unsubscribe",
+    "UNSUBSCRIBE_SUCCESS": "Selected contacts marked as unsubscribed and opted out from campaigns.",
+    "UNSUBSCRIBE_FAILED": "Failed to unsubscribe contacts",
+    "ASSIGN_LABELS_SUCCESS": "Contacts assigned to group successfully.",
+    "ASSIGN_LABELS_FAILED": "Failed to assign to group",
+    "REMOVE_LABELS_SUCCESS": "Contacts removed from group successfully.",
+    "REMOVE_LABELS_FAILED": "Failed to remove from group",
     "DESCRIPTION": "Select the labels you want to add to the selected contacts.",
     "NO_LABELS_FOUND": "No labels available yet.",
     "SELECTED_COUNT": "{count} selected",

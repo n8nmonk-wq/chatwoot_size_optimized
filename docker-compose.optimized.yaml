@@ -1,4 +1,10 @@
-﻿services:
+x-logging: &default-logging
+  driver: "json-file"
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+services:
   rails:
     image: chatwoot/chatwoot:latest
     env_file: .env
@@ -10,7 +16,7 @@
       redis:
         condition: service_healthy
     ports:
-      - '3005:3000'
+      - '3000:3000'
     environment:
       - NODE_ENV=production
       - RAILS_ENV=production
@@ -18,10 +24,11 @@
     entrypoint: docker/entrypoints/rails.sh
     command: ['bundle', 'exec', 'rails', 's', '-p', '3000', '-b', '0.0.0.0']
     restart: always
+    logging: *default-logging
     deploy:
       resources:
         limits:
-          memory: 900M
+          memory: 1000M
 
   sidekiq:
     image: chatwoot/chatwoot:latest
@@ -39,10 +46,11 @@
       - INSTALLATION_ENV=docker
     command: ['bundle', 'exec', 'sidekiq', '-C', 'config/sidekiq.yml']
     restart: always
+    logging: *default-logging
     deploy:
       resources:
         limits:
-          memory: 600M
+          memory: 700M
 
   postgres:
     image: pgvector/pgvector:pg16
@@ -59,6 +67,7 @@
       interval: 5s
       timeout: 5s
       retries: 10
+    logging: *default-logging
     deploy:
       resources:
         limits:
@@ -76,6 +85,7 @@
       interval: 5s
       timeout: 5s
       retries: 10
+    logging: *default-logging
     deploy:
       resources:
         limits:
@@ -85,3 +95,4 @@ volumes:
   storage_data:
   postgres_data:
   redis_data:
+

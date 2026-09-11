@@ -65,18 +65,11 @@ const GO_TO_COMMANDS = [
     params: { navigationPath: 'captain_assistants_overview_index' },
   },
   {
-    id: 'goto_calls_dashboard',
-    title: 'COMMAND_BAR.COMMANDS.GO_TO_CALLS_DASHBOARD',
-    section: SECTION_GENERAL,
-    icon: ICON_PHONE,
-    routeName: 'calls_dashboard_index',
-  },
-  {
     id: 'goto_campaigns',
     title: 'COMMAND_BAR.COMMANDS.GO_TO_CAMPAIGNS',
     section: SECTION_GENERAL,
     icon: ICON_MEGAPHONE,
-    routeName: 'campaigns_livechat_index',
+    routeName: 'campaigns_whatsapp_index',
   },
   {
     id: 'goto_help_center',

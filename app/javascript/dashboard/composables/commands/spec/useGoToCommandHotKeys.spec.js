@@ -204,8 +204,8 @@ describe('useGoToCommandHotKeys', () => {
     const { goToCommandHotKeys } = useGoToCommandHotKeys();
 
     expect(
-      goToCommandHotKeys.value.find(cmd => cmd.id === 'goto_calls_dashboard')
-    ).toBeUndefined();
+      goToCommandHotKeys.value.find(cmd => cmd.id === 'open_audit_logs_settings')
+    ).toBeDefined();
   });
 
   it('should only keep routes that bypass the upgrade page when paywalled', () => {

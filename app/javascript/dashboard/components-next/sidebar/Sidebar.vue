@@ -509,17 +509,6 @@ const menuItems = computed(() => {
       }),
       activeOn: ['captain_assistants_overview_index', 'captain_assistants_create_index'],
     },
-    ...(isCallsAvailable.value
-      ? [
-          {
-            name: 'Calls',
-            label: t('SIDEBAR.CALLS'),
-            icon: 'i-lucide-phone',
-            to: accountScopedRoute('calls_dashboard_index'),
-            activeOn: ['calls_dashboard_index'],
-          },
-        ]
-      : []),
     {
       name: 'Contacts',
       label: t('SIDEBAR.CONTACTS'),
@@ -562,9 +551,9 @@ const menuItems = computed(() => {
           })),
         },
         {
-          name: 'Tagged With',
-          icon: 'i-lucide-tag',
-          label: t('SIDEBAR.TAGGED_WITH'),
+          name: 'Contact Groups',
+          icon: 'i-lucide-users-round',
+          label: 'Contact Groups',
           collapsible: true,
           showTreeLine: true,
           children: labels.value.map(label => ({
@@ -641,23 +630,8 @@ const menuItems = computed(() => {
       name: 'Campaigns',
       label: t('SIDEBAR.CAMPAIGNS'),
       icon: 'i-lucide-megaphone',
-      children: [
-        {
-          name: 'Live chat',
-          label: t('SIDEBAR.LIVE_CHAT'),
-          to: accountScopedRoute('campaigns_livechat_index'),
-        },
-        {
-          name: 'SMS',
-          label: t('SIDEBAR.SMS'),
-          to: accountScopedRoute('campaigns_sms_index'),
-        },
-        {
-          name: 'WhatsApp',
-          label: t('SIDEBAR.WHATSAPP'),
-          to: accountScopedRoute('campaigns_whatsapp_index'),
-        },
-      ],
+      to: accountScopedRoute('campaigns_whatsapp_index'),
+      activeOn: ['campaigns_whatsapp_index', 'campaigns_whatsapp_analytics'],
     },
     {
       name: 'Portals',

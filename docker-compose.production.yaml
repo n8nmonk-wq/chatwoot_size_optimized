@@ -1,4 +1,8 @@
-version: '3'
+x-logging: &default-logging
+  driver: "json-file"
+  options:
+    max-size: "10m"
+    max-file: "3"
 
 services:
   base: &base
@@ -6,6 +10,7 @@ services:
     env_file: .env ## Change this file for customized env variables
     volumes:
       - storage_data:/app/storage
+    logging: *default-logging
 
   rails:
     <<: *base
@@ -37,27 +42,31 @@ services:
   postgres:
     image: pgvector/pgvector:pg16
     restart: always
+    command: postgres -c shared_buffers=128MB -c max_connections=50 -c work_mem=4MB -c effective_cache_size=256MB
     ports:
       - '127.0.0.1:5432:5432'
     volumes:
       - postgres_data:/var/lib/postgresql/data
     environment:
-      - POSTGRES_DB=chatwoot
+      - POSTGRES_DB=chatwoot_production
       - POSTGRES_USER=postgres
       # Please provide your own password.
       - POSTGRES_PASSWORD=
+    logging: *default-logging
 
   redis:
     image: redis:alpine
     restart: always
-    command: ["sh", "-c", "redis-server --requirepass \"$REDIS_PASSWORD\""]
+    command: ["sh", "-c", "redis-server --requirepass \"$REDIS_PASSWORD\" --maxmemory 128mb --maxmemory-policy allkeys-lru"]
     env_file: .env
     volumes:
       - redis_data:/data
     ports:
       - '127.0.0.1:6379:6379'
+    logging: *default-logging
 
 volumes:
   storage_data:
   postgres_data:
   redis_data:
+

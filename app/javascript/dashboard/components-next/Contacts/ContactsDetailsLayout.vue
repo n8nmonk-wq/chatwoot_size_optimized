@@ -7,7 +7,6 @@ import { vOnClickOutside } from '@vueuse/components';
 import Button from 'dashboard/components-next/button/Button.vue';
 import Breadcrumb from 'dashboard/components-next/breadcrumb/Breadcrumb.vue';
 import ComposeConversation from 'dashboard/components-next/NewConversation/ComposeConversation.vue';
-import VoiceCallButton from 'dashboard/components-next/Contacts/VoiceCallButton.vue';
 
 const props = defineProps({
   selectedContact: {
@@ -18,9 +17,13 @@ const props = defineProps({
     type: Boolean,
     default: false,
   },
+  isUnsubscribed: {
+    type: Boolean,
+    default: false,
+  },
 });
 
-const emit = defineEmits(['goToContactsList', 'toggleBlock']);
+const emit = defineEmits(['goToContactsList', 'toggleBlock', 'toggleUnsubscribe']);
 
 const { t } = useI18n();
 const slots = useSlots();
@@ -90,6 +93,20 @@ const closeMobileSidebar = () => {
             <div class="flex items-center gap-2">
               <Button
                 :label="
+                  !isUnsubscribed
+                    ? $t('CONTACTS_LAYOUT.HEADER.UNSUBSCRIBE_CONTACT')
+                    : $t('CONTACTS_LAYOUT.HEADER.RESUBSCRIBE_CONTACT')
+                "
+                :icon="!isUnsubscribed ? 'i-lucide-bell-off' : 'i-lucide-bell'"
+                size="sm"
+                :color="!isUnsubscribed ? 'ruby' : 'slate'"
+                variant="faded"
+                :is-loading="isUpdating"
+                :disabled="isUpdating"
+                @click="emit('toggleUnsubscribe')"
+              />
+              <Button
+                :label="
                   !isContactBlocked
                     ? $t('CONTACTS_LAYOUT.HEADER.BLOCK_CONTACT')
                     : $t('CONTACTS_LAYOUT.HEADER.UNBLOCK_CONTACT')
@@ -99,12 +116,6 @@ const closeMobileSidebar = () => {
                 :is-loading="isUpdating"
                 :disabled="isUpdating"
                 @click="toggleBlock"
-              />
-              <VoiceCallButton
-                :phone="selectedContact?.phoneNumber"
-                :contact-id="contactId"
-                :label="$t('CONTACT_PANEL.CALL')"
-                size="sm"
               />
               <ComposeConversation :contact-id="contactId">
                 <template #trigger>

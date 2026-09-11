@@ -37,10 +37,15 @@ class Whatsapp::Providers::WhatsappCloudService < Whatsapp::Providers::BaseServi
     whatsapp_channel.mark_message_templates_updated
     return if (templates = fetch_whatsapp_templates).blank?
 
+    sanitized_templates = templates.map.with_index do |tmpl, idx|
+      tmpl['id'] = tmpl['id'].presence || "#{tmpl['name']}_#{tmpl['language'] || 'en'}_#{idx + 1}"
+      tmpl
+    end
+
     # update_columns skips touch, so bump the cache key ourselves; only if templates changed
-    whatsapp_channel.account.update_cache_key('inbox') if templates != whatsapp_channel.message_templates
+    whatsapp_channel.account.update_cache_key('inbox') if sanitized_templates != whatsapp_channel.message_templates
     # rubocop:disable Rails/SkipsModelValidations
-    whatsapp_channel.update_columns(message_templates: templates, message_templates_last_updated: Time.current)
+    whatsapp_channel.update_columns(message_templates: sanitized_templates, message_templates_last_updated: Time.current)
     # rubocop:enable Rails/SkipsModelValidations
   end
 

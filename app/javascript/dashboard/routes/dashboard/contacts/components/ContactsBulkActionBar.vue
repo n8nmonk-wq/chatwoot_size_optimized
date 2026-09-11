@@ -26,6 +26,7 @@ const emit = defineEmits([
   'clearSelection',
   'assignLabels',
   'removeLabels',
+  'unsubscribeSelected',
   'toggleAll',
   'deleteSelected',
 ]);
@@ -114,6 +115,19 @@ const handleRemoveLabels = labels => {
             :is-loading="isLoading"
             :disabled="!selectedCount"
             @remove="handleRemoveLabels"
+          />
+          <Button
+            v-tooltip.bottom="t('CONTACTS_BULK_ACTIONS.UNSUBSCRIBE')"
+            sm
+            ghost
+            ruby
+            icon="i-lucide-bell-off"
+            :label="t('CONTACTS_BULK_ACTIONS.UNSUBSCRIBE')"
+            :aria-label="t('CONTACTS_BULK_ACTIONS.UNSUBSCRIBE')"
+            :disabled="!selectedCount || isLoading"
+            :is-loading="isLoading"
+            class="!px-2 [&>span:nth-child(2)]:hidden md:[&>span:nth-child(2)]:inline-flex"
+            @click="emit('unsubscribeSelected')"
           />
           <div class="w-px h-3 bg-n-weak rounded-lg" />
           <Policy :permissions="['administrator']">
