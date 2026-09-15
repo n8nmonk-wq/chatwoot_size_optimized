@@ -17,6 +17,7 @@ import ComposeConversation from 'dashboard/components-next/NewConversation/Compo
 import NextButton from 'dashboard/components-next/button/Button.vue';
 import VoiceCallButton from 'dashboard/components-next/Contacts/VoiceCallButton.vue';
 import InlineInput from 'dashboard/components-next/inline-input/InlineInput.vue';
+import ContactLabels from 'dashboard/components-next/Contacts/ContactLabels/ContactLabels.vue';
 
 export default {
   components: {
@@ -30,6 +31,7 @@ export default {
     ContactDeleteModal,
     VoiceCallButton,
     InlineInput,
+    ContactLabels,
   },
   props: {
     contact: {
@@ -54,6 +56,7 @@ export default {
       showEditModal: false,
       isEditingName: false,
       editName: '',
+      isUpdatingOptOut: false,
     };
   },
   computed: {
@@ -96,16 +99,60 @@ export default {
         telegram,
       };
     },
+    savedContactLabels() {
+      const contactLabels =
+        this.$store.getters['contactLabels/getContactLabels'];
+      return (this.contact.id && contactLabels(this.contact.id)) || [];
+    },
+    isUnsubscribed() {
+      return this.savedContactLabels.includes('unsubscribed');
+    },
   },
   watch: {
     'contact.id': {
       handler(id) {
-        this.$store.dispatch('contacts/fetchContactableInbox', id);
+        if (id) {
+          this.$store.dispatch('contacts/fetchContactableInbox', id);
+          this.$store.dispatch('contactLabels/get', id);
+        }
       },
       immediate: true,
     },
   },
   methods: {
+    async toggleUnsubscribe() {
+      if (!this.contact.id || this.isUpdatingOptOut) return;
+      this.isUpdatingOptOut = true;
+      try {
+        const contactId = this.contact.id;
+        const currentLabels = this.savedContactLabels;
+        let updatedLabels;
+        if (this.isUnsubscribed) {
+          updatedLabels = currentLabels.filter(l => l !== 'unsubscribed');
+          await this.$store.dispatch('contactLabels/update', {
+            contactId,
+            labels: updatedLabels,
+          });
+          useAlert(this.$t('CONTACT_PANEL.RESUBSCRIBED_SUCCESS'));
+        } else {
+          updatedLabels = [
+            ...currentLabels.filter(
+              l => !l.startsWith('wa_batch_') && !l.startsWith('batch_')
+            ),
+            'unsubscribed',
+          ];
+          await this.$store.dispatch('contactLabels/update', {
+            contactId,
+            labels: updatedLabels,
+          });
+          useAlert(this.$t('CONTACT_PANEL.UNSUBSCRIBED_SUCCESS'));
+        }
+      } catch (error) {
+        useAlert(this.$t('CONTACT_PANEL.ERROR_MESSAGE'));
+      } finally {
+        this.isUpdatingOptOut = false;
+      }
+    },
     toggleEditModal() {
       this.showEditModal = !this.showEditModal;
     },
@@ -328,6 +375,20 @@ export default {
           :tooltip-label="$t('CONTACT_PANEL.CALL')"
         />
         <NextButton
+          v-tooltip.top-end="
+            isUnsubscribed
+              ? $t('CONTACT_PANEL.UNSUBSCRIBED')
+              : $t('CONTACT_PANEL.UNSUBSCRIBE')
+          "
+          :icon="isUnsubscribed ? 'i-lucide-bell-ring' : 'i-lucide-bell-off'"
+          :ruby="isUnsubscribed"
+          :slate="!isUnsubscribed"
+          faded
+          sm
+          :disabled="isUpdatingOptOut"
+          @click="toggleUnsubscribe"
+        />
+        <NextButton
           v-tooltip.top-end="$t('EDIT_CONTACT.BUTTON_LABEL')"
           icon="i-ph-pencil-simple"
           slate
@@ -364,6 +425,9 @@ export default {
             />
           </template>
         </ContactDeleteModal>
+      </div>
+      <div v-if="contact.id" class="w-full pt-2 mt-1 border-t border-n-weak">
+        <ContactLabels :contact-id="contact.id" class="w-full" />
       </div>
       <EditContact
         :show="showEditModal"

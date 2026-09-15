@@ -94,6 +94,11 @@ export default {
       MENU,
       labelSearchQuery: '',
       STATUS_TYPE: wootConstants.STATUS_TYPE,
+      optOutOption: {
+        key: 'opt-out',
+        label: this.$t('CONVERSATION.CARD_CONTEXT_MENU.UNSUBSCRIBE_CONTACT'),
+        icon: 'person-remove',
+      },
       readOption: {
         label: this.$t('CONVERSATION.CARD_CONTEXT_MENU.MARK_AS_READ'),
         icon: 'mail',
@@ -230,11 +235,39 @@ export default {
       const isAssigned = label => this.conversationLabels.includes(label.title);
       return [...labels].sort((a, b) => isAssigned(b) - isAssigned(a));
     },
+    canCreateLabel() {
+      const query = this.labelSearchQuery?.trim()?.toLowerCase();
+      if (!query) return false;
+      return !this.labels.some(l => l.title.toLowerCase() === query);
+    },
   },
   mounted() {
     this.$store.dispatch('inboxAssignableAgents/fetch', [this.inboxId]);
   },
   methods: {
+    async createAndAssignLabel(title) {
+      if (!title) return;
+      try {
+        const randomColor = `#${Math.floor(Math.random() * 16777215)
+          .toString(16)
+          .padStart(6, '0')}`;
+        const newLabel = await this.$store.dispatch('labels/create', {
+          title,
+          description: '',
+          color: randomColor,
+          show_on_sidebar: true,
+        });
+        this.labelSearchQuery = '';
+        this.$emit('assignLabel', newLabel || { title, color: randomColor });
+        useAlert(this.$t('LABEL_MGMT.ADD.API.SUCCESS_MESSAGE'));
+      } catch (error) {
+        useAlert(this.$t('LABEL_MGMT.ADD.API.ERROR_MESSAGE'));
+      }
+    },
+    unsubscribeContact() {
+      this.$emit('assignLabel', { title: 'unsubscribed', color: '#e11d48' });
+      this.$emit('close');
+    },
     isAllowed(keys) {
       if (!this.allowedOptions.length) return true;
       return keys.some(key => this.allowedOptions.includes(key));
@@ -299,6 +332,11 @@ export default {
   >
     <template v-if="isAllowed([MENU.MARK_AS_READ, MENU.MARK_AS_UNREAD])">
       <MenuItem
+        :option="optOutOption"
+        variant="icon"
+        @click.stop="unsubscribeContact"
+      />
+      <MenuItem
         v-if="!hasUnreadMessages"
         :option="unreadOption"
         variant="icon"
@@ -347,7 +385,7 @@ export default {
       <MenuItemWithSubmenu
         v-if="isAllowed([MENU.LABEL])"
         :option="labelMenuConfig"
-        :sub-menu-available="!!labels.length"
+        :sub-menu-available="true"
       >
         <div class="pb-1 w-[12.5rem]">
           <NextInput
@@ -369,6 +407,17 @@ export default {
           </NextInput>
         </div>
         <div class="overflow-x-hidden overflow-y-auto max-h-[12.5rem]">
+          <div
+            v-if="canCreateLabel"
+            class="flex items-center gap-1.5 px-3 py-1.5 mb-1 mx-1 rounded text-xs font-medium text-n-blue-11 bg-n-blue-3 hover:bg-n-blue-4 cursor-pointer transition-colors"
+            @mousedown.prevent
+            @click.stop="createAndAssignLabel(labelSearchQuery.trim())"
+          >
+            <Icon icon="i-lucide-plus" class="size-3.5 flex-shrink-0" />
+            <span class="truncate">
+              {{ $t('CONVERSATION.CARD_CONTEXT_MENU.CREATE_AND_ASSIGN', { name: labelSearchQuery.trim() }) }}
+            </span>
+          </div>
           <MenuItem
             v-for="label in filteredLabels"
             :key="label.id"
@@ -386,7 +435,7 @@ export default {
             "
           />
           <p
-            v-if="!filteredLabels.length"
+            v-if="!filteredLabels.length && !canCreateLabel"
             class="px-2 py-2 m-0 text-xs text-center text-n-slate-11"
           >
             {{ $t('CONVERSATION.CARD_CONTEXT_MENU.NO_LABELS_FOUND') }}

@@ -49,6 +49,11 @@
       "MOVE_GROUP_SUCCESS": "Contact moved to {group} successfully."
     },
     "MERGE_CONTACT": "Merge contact",
+    "UNSUBSCRIBE": "Unsubscribe contact",
+    "UNSUBSCRIBED": "Contact is unsubscribed",
+    "UNSUBSCRIBED_SUCCESS": "Contact marked as unsubscribed and opted out from campaigns.",
+    "RESUBSCRIBED_SUCCESS": "Contact resubscribed successfully.",
+    "ERROR_MESSAGE": "An error occurred. Please try again.",
     "CONTACT_ACTIONS": "Contact actions",
     "MUTE_CONTACT": "Block Contact",
     "UNMUTE_CONTACT": "Unblock Contact",
@@ -592,6 +597,10 @@
     "LOAD_MORE": "Load more"
   },
   "CONTACTS_BULK_ACTIONS": {
+    "MOVE_GROUP": "Move to Group",
+    "MOVE_TO_SELECTED_GROUP": "Move to Selected Group",
+    "MOVE_GROUP_SUCCESS": "Contacts moved to new group successfully.",
+    "MOVE_GROUP_FAILED": "Failed to move contacts to new group",
     "ASSIGN_LABELS": "Assign to Group",
     "REMOVE_LABELS": "Remove from Group",
     "UNSUBSCRIBE": "Unsubscribe",

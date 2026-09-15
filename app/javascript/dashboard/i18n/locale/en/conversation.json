@@ -237,6 +237,8 @@
       "ASSIGN_LABEL": "Assign label",
       "SEARCH_LABELS": "Search labels",
       "NO_LABELS_FOUND": "No labels found",
+      "CREATE_AND_ASSIGN": "+ Create & assign \"{name}\"",
+      "UNSUBSCRIBE_CONTACT": "Unsubscribe contact",
       "AGENTS_LOADING": "Loading agents...",
       "ASSIGN_TEAM": "Assign team",
       "DELETE": "Delete conversation",

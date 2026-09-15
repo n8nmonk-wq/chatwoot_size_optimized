@@ -17,7 +17,7 @@ const props = defineProps({
   action: {
     type: String,
     default: 'assign',
-    validator: value => ['assign', 'remove'].includes(value),
+    validator: value => ['assign', 'remove', 'move'].includes(value),
   },
   isLoading: {
     type: Boolean,
@@ -33,7 +33,7 @@ const props = defineProps({
   },
 });
 
-const emit = defineEmits(['assign', 'remove']);
+const emit = defineEmits(['assign', 'remove', 'move']);
 
 const { t } = useI18n();
 
@@ -45,26 +45,36 @@ const selectedLabels = ref([]);
 
 const isTypeContact = computed(() => props.type === 'contact');
 const isRemoveAction = computed(() => props.action === 'remove');
+const isMoveAction = computed(() => props.action === 'move');
 
 const buttonLabel = computed(() => {
   if (!isTypeContact.value) return '';
 
+  if (isMoveAction.value) {
+    return t('CONTACTS_BULK_ACTIONS.MOVE_GROUP');
+  }
   return isRemoveAction.value
     ? t('CONTACTS_BULK_ACTIONS.REMOVE_LABELS')
     : t('CONTACTS_BULK_ACTIONS.ASSIGN_LABELS');
 });
 
-const tooltipLabel = computed(() =>
-  isRemoveAction.value
+const tooltipLabel = computed(() => {
+  if (isMoveAction.value) {
+    return t('CONTACTS_BULK_ACTIONS.MOVE_GROUP');
+  }
+  return isRemoveAction.value
     ? t('BULK_ACTION.LABELS.REMOVE_LABELS')
-    : t('BULK_ACTION.LABELS.ASSIGN_LABELS')
-);
+    : t('BULK_ACTION.LABELS.ASSIGN_LABELS');
+});
 
-const confirmLabel = computed(() =>
-  isRemoveAction.value
+const confirmLabel = computed(() => {
+  if (isMoveAction.value) {
+    return t('CONTACTS_BULK_ACTIONS.MOVE_TO_SELECTED_GROUP');
+  }
+  return isRemoveAction.value
     ? t('BULK_ACTION.LABELS.REMOVE_SELECTED_LABELS')
-    : t('BULK_ACTION.LABELS.ASSIGN_SELECTED_LABELS')
-);
+    : t('BULK_ACTION.LABELS.ASSIGN_SELECTED_LABELS');
+});
 
 const isLabelSelected = labelTitle => {
   return selectedLabels.value.includes(labelTitle);
@@ -91,6 +101,12 @@ const labelMenuItems = computed(() => {
 });
 
 const toggleLabelSelection = labelTitle => {
+  if (isMoveAction.value) {
+    selectedLabels.value = selectedLabels.value.includes(labelTitle)
+      ? []
+      : [labelTitle];
+    return;
+  }
   const index = selectedLabels.value.indexOf(labelTitle);
   if (index > -1) {
     selectedLabels.value.splice(index, 1);
@@ -101,7 +117,9 @@ const toggleLabelSelection = labelTitle => {
 
 const handleApply = () => {
   if (selectedLabels.value.length > 0) {
-    if (isRemoveAction.value) {
+    if (isMoveAction.value) {
+      emit('move', selectedLabels.value);
+    } else if (isRemoveAction.value) {
       emit('remove', selectedLabels.value);
     } else {
       emit('assign', selectedLabels.value);
@@ -122,7 +140,13 @@ const handleDismiss = () => {
     <NextButton
       v-tooltip="tooltipLabel"
       :label="buttonLabel"
-      :icon="isRemoveAction ? 'i-woot-tag-remove' : 'i-lucide-tag'"
+      :icon="
+        isMoveAction
+          ? 'i-lucide-arrow-right-left'
+          : isRemoveAction
+            ? 'i-woot-tag-remove'
+            : 'i-lucide-tag'
+      "
       slate
       :size="isTypeContact ? 'sm' : 'xs'"
       ghost

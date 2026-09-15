@@ -373,6 +373,33 @@ const removeLabels = async labels => {
   }
 };
 
+const moveGroup = async targetLabels => {
+  if (!targetLabels.length || !selectedContactIds.value.length) {
+    return;
+  }
+
+  isBulkActionLoading.value = true;
+  try {
+    const removeList = activeLabel.value ? [activeLabel.value] : [];
+    await BulkActionsAPI.create({
+      type: 'Contact',
+      ids: selectedContactIds.value,
+      action_name: 'move_group',
+      labels: {
+        add: targetLabels,
+        remove: removeList,
+      },
+    });
+    useAlert(t('CONTACTS_BULK_ACTIONS.MOVE_GROUP_SUCCESS'));
+    clearSelection();
+    await fetchContactsBasedOnContext(pageNumber.value);
+  } catch (error) {
+    useAlert(t('CONTACTS_BULK_ACTIONS.MOVE_GROUP_FAILED'));
+  } finally {
+    isBulkActionLoading.value = false;
+  }
+};
+
 const unsubscribeContacts = async () => {
   if (!selectedContactIds.value.length) {
     return;
@@ -559,6 +586,7 @@ onMounted(async () => {
           @clear-selection="clearSelection"
           @assign-labels="assignLabels"
           @remove-labels="removeLabels"
+          @move-group="moveGroup"
           @unsubscribe-selected="unsubscribeContacts"
           @delete-selected="openBulkDeleteDialog"
         />

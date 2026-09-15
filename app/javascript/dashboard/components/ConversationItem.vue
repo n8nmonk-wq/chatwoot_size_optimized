@@ -144,8 +144,22 @@ const onAssignAgent = agent => {
   closeContextMenu();
 };
 
-const onAssignLabel = label => {
+const onAssignLabel = async label => {
   assignLabels([label.title], [props.source.id]);
+  if (senderId.value) {
+    try {
+      const contactLabelsGetter = store.getters['contactLabels/getContactLabels'];
+      const currentContactLabels = contactLabelsGetter(senderId.value) || [];
+      if (!currentContactLabels.includes(label.title)) {
+        await store.dispatch('contactLabels/update', {
+          contactId: senderId.value,
+          labels: [...currentContactLabels, label.title],
+        });
+      }
+    } catch (e) {
+      // Ignore non-critical error
+    }
+  }
 };
 
 const onRemoveLabel = label => {

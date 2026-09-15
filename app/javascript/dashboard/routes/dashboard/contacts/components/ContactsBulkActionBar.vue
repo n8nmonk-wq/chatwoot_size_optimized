@@ -26,6 +26,7 @@ const emit = defineEmits([
   'clearSelection',
   'assignLabels',
   'removeLabels',
+  'moveGroup',
   'unsubscribeSelected',
   'toggleAll',
   'deleteSelected',
@@ -78,6 +79,10 @@ const handleAssignLabels = labels => {
 const handleRemoveLabels = labels => {
   emit('removeLabels', labels);
 };
+
+const handleMoveGroup = labels => {
+  emit('moveGroup', labels);
+};
 </script>
 
 <template>
@@ -103,6 +108,13 @@ const handleRemoveLabels = labels => {
       </template>
       <template #actions>
         <div class="flex items-center gap-2 ml-auto">
+          <BulkLabelActions
+            type="contact"
+            action="move"
+            :is-loading="isLoading"
+            :disabled="!selectedCount"
+            @move="handleMoveGroup"
+          />
           <BulkLabelActions
             type="contact"
             :is-loading="isLoading"

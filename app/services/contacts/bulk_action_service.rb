@@ -7,14 +7,38 @@ class Contacts::BulkActionService
 
   def perform
     return delete_contacts if delete_requested?
-    return assign_labels if labels_to_add.any?
-    return remove_labels if labels_to_remove.any?
+    return move_group if move_group_requested?
+
+    if labels_to_add.any? || labels_to_remove.any?
+      remove_labels if labels_to_remove.any?
+      assign_labels if labels_to_add.any?
+      return { success: true }
+    end
 
     Rails.logger.warn("Unknown contact bulk operation payload: #{@params.keys}")
     { success: false, error: 'unknown_operation' }
   end
 
   private
+
+  def move_group_requested?
+    @params[:action_name] == 'move_group'
+  end
+
+  def move_group
+    contacts = @account.contacts.where(id: ids)
+    target_labels = labels_to_add
+
+    contacts.find_each do |contact|
+      current_tags = contact.label_list
+      tags_to_remove = current_tags.select { |t| t.start_with?('wa_batch_', 'batch_') } + labels_to_remove
+      cleaned_tags = current_tags - tags_to_remove
+      new_tags = (cleaned_tags + target_labels).uniq
+      contact.update!(label_list: new_tags)
+    end
+
+    { success: true, updated_contact_ids: contacts.pluck(:id) }
+  end
 
   def assign_labels
     Contacts::BulkAssignLabelsService.new(

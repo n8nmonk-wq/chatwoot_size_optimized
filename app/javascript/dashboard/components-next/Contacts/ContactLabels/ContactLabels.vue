@@ -4,6 +4,7 @@ import { useRoute } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { useMapGetter, useStore } from 'dashboard/composables/store';
 import { useAlert } from 'dashboard/composables';
+import { vOnClickOutside } from '@vueuse/components';
 
 import LabelItem from 'dashboard/components-next/label/LabelItem.vue';
 import AddLabel from 'dashboard/components-next/label/AddLabel.vue';
@@ -173,7 +174,7 @@ const handleLabelHover = labelId => {
       </button>
       <DropdownMenu
         v-if="showMoveDropdown"
-        v-on-clickaway="() => (showMoveDropdown = false)"
+        v-on-click-outside="() => (showMoveDropdown = false)"
         :menu-items="labelMenuItems"
         show-search
         class="z-[100] w-48 mt-2 ltr:left-0 rtl:right-0 top-full max-h-52"

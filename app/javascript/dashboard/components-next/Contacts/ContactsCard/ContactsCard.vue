@@ -117,32 +117,24 @@ const handleAvatarHover = isHovered => {
         'outline-n-weak !bg-n-slate-3 dark:!bg-n-solid-3': isSelected,
       }"
     >
-      <div class="flex items-center justify-start flex-1 gap-4">
-        <div
-          class="relative"
-          @mouseenter="handleAvatarHover(true)"
-          @mouseleave="handleAvatarHover(false)"
+      <div class="flex items-center justify-start flex-1 gap-3">
+        <label
+          class="flex items-center justify-center cursor-pointer p-1 rounded hover:bg-n-alpha-2 shrink-0"
+          @click.stop
         >
+          <Checkbox
+            :model-value="isSelected"
+            @change="event => toggleSelect(event.target.checked)"
+          />
+        </label>
+        <div class="relative">
           <Avatar
             :name="name"
             :src="thumbnail"
             :size="42"
             :status="availabilityStatus"
             hide-offline-status
-          >
-            <template v-if="selectable" #overlay="{ size }">
-              <label
-                class="flex items-center justify-center rounded-full cursor-pointer absolute inset-0 z-10 backdrop-blur-[2px] border border-n-weak"
-                :style="{ width: `${size}px`, height: `${size}px` }"
-                @click.stop
-              >
-                <Checkbox
-                  :model-value="isSelected"
-                  @change="event => toggleSelect(event.target.checked)"
-                />
-              </label>
-            </template>
-          </Avatar>
+          />
         </div>
         <div class="flex flex-col gap-0.5 flex-1">
           <div class="flex flex-wrap items-center gap-x-4 gap-y-1">
