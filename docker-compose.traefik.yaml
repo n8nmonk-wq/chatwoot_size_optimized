@@ -37,9 +37,6 @@ services:
 
   sidekiq:
     image: chatwoot/chatwoot:latest
-    build:
-      context: .
-      dockerfile: docker/Dockerfile
     container_name: chatwoot_sidekiq
     restart: unless-stopped
     env_file: .env
