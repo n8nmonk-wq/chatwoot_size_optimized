@@ -1,6 +1,9 @@
-﻿services:
+services:
   rails:
     image: chatwoot/chatwoot:latest
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
     container_name: chatwoot_rails
     restart: unless-stopped
     env_file: .env
@@ -34,6 +37,9 @@
 
   sidekiq:
     image: chatwoot/chatwoot:latest
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
     container_name: chatwoot_sidekiq
     restart: unless-stopped
     env_file: .env
