@@ -124,11 +124,6 @@ gem 'google-cloud-translate-v3', '>= 0.7.0'
 ##-- apm and error monitoring ---#
 # loaded only when environment variables are set.
 # ref application.rb
-gem 'datadog', '~> 2.0', require: false
-gem 'elastic-apm', require: false
-gem 'newrelic_rpm', require: false
-gem 'newrelic-sidekiq-metrics', '>= 1.6.2', require: false
-gem 'scout_apm', require: false
 gem 'sentry-rails', '>= 5.19.0', require: false
 gem 'sentry-ruby', require: false
 gem 'sentry-sidekiq', '>= 5.19.0', require: false
@@ -139,8 +134,6 @@ gem 'sidekiq', '~> 7.3.10'
 gem 'sidekiq-cron', '>= 2.4.0'
 # for sidekiq healthcheck
 gem 'sidekiq_alive'
-# publishes Sidekiq queue metrics to CloudWatch for autoscaling (opt-in via ENABLE_SIDEKIQ_CLOUDWATCH)
-gem 'speedshop-cloudwatch', '~> 0.2.1', require: false
 
 ##-- Push notification service --##
 gem 'fcm'

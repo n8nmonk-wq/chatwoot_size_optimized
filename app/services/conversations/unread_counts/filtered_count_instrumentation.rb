@@ -69,14 +69,7 @@ class Conversations::UnreadCounts::FilteredCountInstrumentation
       record_metric("#{metric_name(operation)}/count", 1)
     end
 
-    def record_event(operation, attributes = {})
-      agent = new_relic_agent
-      return unless agent.respond_to?(:record_custom_event)
-
-      agent.record_custom_event(EVENT_NAME, sanitized_attributes(attributes.merge(operation: operation)))
-    rescue StandardError
-      nil
-    end
+    def record_event(operation, attributes = {}); end
 
     private
 
@@ -94,14 +87,7 @@ class Conversations::UnreadCounts::FilteredCountInstrumentation
       record_event(:request_summary, summary)
     end
 
-    def record_metric(name, value)
-      agent = new_relic_agent
-      return unless agent.respond_to?(:record_metric)
-
-      agent.record_metric(name, value)
-    rescue StandardError
-      nil
-    end
+    def record_metric(name, value); end
 
     def metric_name(operation)
       "#{METRIC_PREFIX}/#{operation}"
@@ -177,12 +163,6 @@ class Conversations::UnreadCounts::FilteredCountInstrumentation
 
     def monotonic_time
       Process.clock_gettime(Process::CLOCK_MONOTONIC)
-    end
-
-    def new_relic_agent
-      return unless defined?(::NewRelic::Agent)
-
-      ::NewRelic::Agent
     end
   end
 end
