@@ -267,10 +267,6 @@
   description: 'The Chatwoot Inbox HMAC Key for Contact Support in Cloud'
   locked: false
   type: secret
-- name: CHATWOOT_CLOUD_PLANS
-  display_title: 'Cloud Plans'
-  value:
-  description: 'Config to store stripe plans for cloud'
 - name: CAPTAIN_TOPUP_OPTIONS
   display_title: 'Captain Topup Options'
   value: {}

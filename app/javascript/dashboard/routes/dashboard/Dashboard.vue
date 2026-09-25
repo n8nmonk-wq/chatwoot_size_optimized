@@ -154,7 +154,7 @@ export default {
     >
       <div class="flex items-center gap-3">
         <img
-          src="/brand-assets/logo_thumbnail.png"
+          :src="'/brand-assets/logo_thumbnail.png'"
           alt="MMOChat"
           class="h-8 w-8 rounded-lg object-contain shadow-sm"
         />

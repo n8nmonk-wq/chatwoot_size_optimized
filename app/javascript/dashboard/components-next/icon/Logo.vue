@@ -16,7 +16,7 @@ const globalConfig = useMapGetter('globalConfig/get');
   <img
     v-else
     v-bind="attrs"
-    src="/brand-assets/logo_thumbnail.png"
+    :src="'/brand-assets/logo_thumbnail.png'"
     alt="MMOChat"
   />
 </template>

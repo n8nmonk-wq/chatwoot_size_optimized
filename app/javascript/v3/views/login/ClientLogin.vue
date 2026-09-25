@@ -49,7 +49,7 @@ const handleLogin = async () => {
       <!-- Header with Logo -->
       <div class="flex flex-col items-center text-center">
         <img
-          src="/brand-assets/logo_thumbnail.png"
+          :src="'/brand-assets/logo_thumbnail.png'"
           alt="MMOChat"
           class="h-16 w-16 rounded-xl object-contain shadow-sm mb-4"
         />
