@@ -226,7 +226,8 @@ export default {
       return !!(
         this.currentChat?.can_reply ||
         this.isAWhatsAppChannel ||
-        this.isAPIInbox
+        this.isAPIInbox ||
+        this.$store.getters.getCurrentRole === 'client'
       );
     },
     canSendPublicReply() {
@@ -543,13 +544,13 @@ export default {
         return;
       }
 
-      if (this.isOnPrivateNote) {
-        return;
+      if (oldConversation && oldConversation.id !== conversation.id) {
+        this.replyType = REPLY_EDITOR_MODES.REPLY;
+      } else if (!this.isOnPrivateNote) {
+        this.replyType = this.isWithinMessagingWindow
+          ? REPLY_EDITOR_MODES.REPLY
+          : REPLY_EDITOR_MODES.NOTE;
       }
-
-      this.replyType = this.isWithinMessagingWindow
-        ? REPLY_EDITOR_MODES.REPLY
-        : REPLY_EDITOR_MODES.NOTE;
 
       this.fetchAndSetReplyTo();
     },

@@ -72,7 +72,15 @@ const store = useStore();
 
 const resolveAttributesModalRef = ref(null);
 
-const activeAssigneeTab = ref(wootConstants.ASSIGNEE_TYPE.ME);
+const isClientUser = computed(() => store.getters.getCurrentRole === 'client');
+const savedAssigneeTab = localStorage.getItem('chatwoot_active_assignee_tab');
+const initialAssigneeTab =
+  savedAssigneeTab ||
+  (isClientUser.value
+    ? wootConstants.ASSIGNEE_TYPE.UNASSIGNED
+    : wootConstants.ASSIGNEE_TYPE.ME);
+
+const activeAssigneeTab = ref(initialAssigneeTab);
 const activeStatus = ref(wootConstants.STATUS_TYPE.OPEN);
 const activeSortBy = ref(wootConstants.SORT_BY_TYPE.LAST_ACTIVITY_AT_DESC);
 const showAdvancedFilters = ref(false);
@@ -612,6 +620,11 @@ function updateAssigneeTab(selectedTab) {
     resetBulkActions();
     emitter.emit('clearSearchInput');
     activeAssigneeTab.value = selectedTab;
+    try {
+      localStorage.setItem('chatwoot_active_assignee_tab', selectedTab);
+    } catch (e) {
+      // Ignore localStorage errors
+    }
     if (!currentPage.value) {
       fetchConversations();
     }

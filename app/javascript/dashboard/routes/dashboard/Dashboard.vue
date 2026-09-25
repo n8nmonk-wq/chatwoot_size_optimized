@@ -44,6 +44,7 @@ export default {
     const callsStore = useCallsStore();
     const store = useStore();
     const isClient = computed(() => store.getters.getCurrentRole === 'client');
+    store.dispatch('inboxes/get');
     const currentUser = computed(() => store.getters.getCurrentUser || {});
     const currentAccount = computed(() => store.getters.getCurrentAccount || {});
     const currentAccountName = computed(() => currentAccount.value?.name || 'Account');
@@ -165,20 +166,12 @@ export default {
           </span>
           <span class="text-xs text-n-slate-9 hidden sm:inline">&bull;</span>
           <span class="text-xs text-n-slate-11 font-medium hidden sm:inline">
-            {{ currentAccountName }}
+            {{ clientDisplayName }}
           </span>
         </div>
       </div>
 
       <div class="flex items-center gap-3">
-        <div class="flex items-center gap-2">
-          <div class="w-7 h-7 rounded-full bg-n-alpha-3 flex items-center justify-center text-xs font-semibold text-n-slate-12">
-            {{ clientInitials }}
-          </div>
-          <span class="text-xs font-medium text-n-slate-11 hidden sm:inline">
-            {{ clientDisplayName }}
-          </span>
-        </div>
         <button
           type="button"
           class="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium text-n-ruby-11 bg-n-ruby-2 hover:bg-n-ruby-3 transition"
