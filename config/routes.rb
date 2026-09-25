@@ -61,6 +61,7 @@ Rails.application.routes.draw do
           resources :agents, only: [:index, :create, :update, :destroy] do
             post :bulk_create, on: :collection
           end
+          resources :clients, only: [:index, :create, :update, :destroy]
           resource :saml_settings, only: [:show, :create, :update, :destroy]
 
           resources :agent_bots, only: [:index, :create, :show, :update, :destroy] do

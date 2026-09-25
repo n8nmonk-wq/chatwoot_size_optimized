@@ -12,6 +12,7 @@ import automations from './modules/automations';
 import bulkActions from './modules/bulkActions';
 import campaigns from './modules/campaigns';
 import cannedResponse from './modules/cannedResponse';
+import clients from './modules/clients';
 import contactConversations from './modules/contactConversations';
 import contactLabels from './modules/contactLabels';
 import contactNotes from './modules/contactNotes';
@@ -60,6 +61,7 @@ export default createStore({
     bulkActions,
     campaigns,
     cannedResponse,
+    clients,
     contactConversations,
     contactLabels,
     contactNotes,

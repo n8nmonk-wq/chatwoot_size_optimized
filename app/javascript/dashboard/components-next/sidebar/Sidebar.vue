@@ -619,6 +619,12 @@ const menuItems = computed(() => {
           icon: 'i-lucide-square-user',
           to: accountScopedRoute('agent_list'),
         },
+        {
+          name: 'Settings Clients',
+          label: t('SIDEBAR.CLIENTS'),
+          icon: 'i-lucide-users',
+          to: accountScopedRoute('client_list'),
+        },
 
         ...(hasAdvancedAssignment.value
           ? [

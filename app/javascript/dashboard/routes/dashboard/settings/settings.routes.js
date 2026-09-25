@@ -6,6 +6,7 @@ import {
 
 import account from './account/account.routes';
 import agent from './agents/agent.routes';
+import client from './clients/client.routes';
 import assignmentPolicy from './assignmentPolicy/assignmentPolicy.routes';
 import agentBot from './agentBots/agentBot.routes';
 import attributes from './attributes/attributes.routes';
@@ -45,6 +46,7 @@ export default {
     },
     ...account.routes,
     ...agent.routes,
+    ...client.routes,
     ...assignmentPolicy.routes,
     ...agentBot.routes,
     ...attributes.routes,
