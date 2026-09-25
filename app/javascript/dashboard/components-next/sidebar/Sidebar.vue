@@ -433,28 +433,6 @@ const menuItems = computed(() => {
           })),
         },
         {
-          name: 'Teams',
-          label: t('SIDEBAR.TEAMS'),
-          icon: 'i-lucide-users',
-          activeOn: ['conversations_through_team'],
-          ...buildSortConfig(SIDEBAR_SORT_SECTIONS.TEAMS),
-          collapsible: true,
-          showTreeLine: true,
-          children: sortedTeams.value.map(team => ({
-            name: `${team.name}-${team.id}`,
-            label: team.name,
-            badgeCount: getTeamUnreadCount.value(team.id),
-            icon: team.icon
-              ? h(EmojiIcon, {
-                  value: team.icon,
-                  color: team.icon_color,
-                  class: 'size-3.5',
-                })
-              : undefined,
-            to: accountScopedRoute('team_conversations', { teamId: team.id }),
-          })),
-        },
-        {
           name: 'Channels',
           label: t('SIDEBAR.CHANNELS'),
           icon: 'i-lucide-mailbox',
@@ -501,18 +479,10 @@ const menuItems = computed(() => {
       ],
     },
     {
-      name: 'Captain',
-      icon: 'i-woot-captain',
-      label: 'Captain (Disabled)',
-      to: accountScopedRoute('captain_assistants_index', {
-        navigationPath: 'captain_assistants_overview_index',
-      }),
-      activeOn: ['captain_assistants_overview_index', 'captain_assistants_create_index'],
-    },
-    {
       name: 'Contacts',
       label: t('SIDEBAR.CONTACTS'),
       icon: 'i-lucide-contact',
+
       children: [
         {
           name: 'All Contacts',
@@ -632,16 +602,6 @@ const menuItems = computed(() => {
       icon: 'i-lucide-megaphone',
       to: accountScopedRoute('campaigns_whatsapp_index'),
       activeOn: ['campaigns_whatsapp_index', 'campaigns_whatsapp_analytics'],
-    },
-    {
-      name: 'Portals',
-      label: 'Help Center (Disabled)',
-      icon: 'i-lucide-library-big',
-      to: accountScopedRoute('portals_index', {
-        navigationPath: 'portals_articles_index',
-      }),
-      activeOn: ['portals_index', 'portals_articles_index'],
-    },
     {
       name: 'Settings',
       label: t('SIDEBAR.SETTINGS'),
@@ -653,34 +613,13 @@ const menuItems = computed(() => {
           icon: 'i-lucide-briefcase',
           to: accountScopedRoute('general_settings_index'),
         },
-        // {
-        //   name: 'Settings Captain',
-        //   label: t('SIDEBAR.CAPTAIN_AI'),
-        //   icon: 'i-woot-captain',
-        //   to: accountScopedRoute('captain_settings_index'),
-        // },
         {
           name: 'Settings Agents',
           label: t('SIDEBAR.AGENTS'),
           icon: 'i-lucide-square-user',
           to: accountScopedRoute('agent_list'),
         },
-        {
-          name: 'Settings Teams',
-          label: t('SIDEBAR.TEAMS'),
-          icon: 'i-lucide-users',
-          activeOn: [
-            'settings_teams_list',
-            'settings_teams_new',
-            'settings_teams_finish',
-            'settings_teams_add_agents',
-            'settings_teams_show',
-            'settings_teams_edit',
-            'settings_teams_edit_members',
-            'settings_teams_edit_finish',
-          ],
-          to: accountScopedRoute('settings_teams_list'),
-        },
+
         ...(hasAdvancedAssignment.value
           ? [
               {
@@ -745,22 +684,10 @@ const menuItems = computed(() => {
           to: accountScopedRoute('agent_bots'),
         },
         {
-          name: 'Settings Macros',
-          label: t('SIDEBAR.MACROS'),
-          icon: 'i-lucide-toy-brick',
-          to: accountScopedRoute('macros_wrapper'),
-        },
-        {
           name: 'Settings Canned Responses',
           label: t('SIDEBAR.CANNED_RESPONSES'),
           icon: 'i-lucide-message-square-quote',
           to: accountScopedRoute('canned_list'),
-        },
-        {
-          name: 'Settings Integrations',
-          label: t('SIDEBAR.INTEGRATIONS'),
-          icon: 'i-lucide-blocks',
-          to: accountScopedRoute('settings_applications'),
         },
         ...(hasDataImport.value
           ? [
@@ -779,17 +706,12 @@ const menuItems = computed(() => {
           to: accountScopedRoute('auditlogs_list'),
         },
         {
-          name: 'Settings Custom Roles',
-          label: t('SIDEBAR.CUSTOM_ROLES'),
-          icon: 'i-lucide-shield-plus',
-          to: accountScopedRoute('custom_roles_list'),
-        },
-        {
           name: 'Settings Sla',
           label: t('SIDEBAR.SLA'),
           icon: 'i-lucide-clock-alert',
           to: accountScopedRoute('sla_list'),
         },
+
         {
           name: 'Conversation Workflow',
           label: t('SIDEBAR.CONVERSATION_WORKFLOW'),

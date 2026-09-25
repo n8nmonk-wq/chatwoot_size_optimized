@@ -61,57 +61,8 @@ Rails.application.routes.draw do
           resources :agents, only: [:index, :create, :update, :destroy] do
             post :bulk_create, on: :collection
           end
-          namespace :captain do
-            resource :preferences, only: [:show, :update]
-            resources :assistants do
-              member do
-                post :playground
-                get :metrics
-                get :faq_stats
-                get :summary
-                get :drilldown
-              end
-              resource :stats, only: [], controller: :assistant_stats do
-                get :overview
-                get :overview_summary
-                get :resolution_flow
-                get :resolution_trend
-              end
-              collection do
-                get :tools
-              end
-              resources :inboxes, only: [:index, :create, :destroy], param: :inbox_id
-              resources :scenarios
-            end
-            resources :agent_sessions, only: [:show]
-            resources :assistant_responses do
-              get :drilldown, on: :member
-            end
-            resources :faq_suggestions, only: [:index, :show, :update] do
-              post :approve, on: :member
-              post :dismiss, on: :member
-            end
-            resources :message_reports, only: [:create]
-            resources :bulk_actions, only: [:create]
-            resources :copilot_threads, only: [:index, :create] do
-              resources :copilot_messages, only: [:index, :create]
-            end
-            resources :custom_tools do
-              post :test, on: :collection
-            end
-            resources :documents, only: [:index, :show, :create, :destroy] do
-              post :sync, on: :member
-              get :drilldown, on: :member
-            end
-            resource :tasks, only: [], controller: 'tasks' do
-              post :rewrite
-              post :summarize
-              post :reply_suggestion
-              post :label_suggestion
-              post :follow_up
-            end
-          end
           resource :saml_settings, only: [:show, :create, :update, :destroy]
+
           resources :agent_bots, only: [:index, :create, :show, :update, :destroy] do
             delete :avatar, on: :member
             post :reset_access_token, on: :member
@@ -136,11 +87,9 @@ Rails.application.routes.draw do
           resources :automation_rules, only: [:index, :create, :show, :update, :destroy] do
             post :clone
           end
-          resources :macros, only: [:index, :create, :show, :update, :destroy] do
-            post :execute, on: :member
-          end
           resources :sla_policies, only: [:index, :create, :show, :update, :destroy]
-          resources :custom_roles, only: [:index, :create, :show, :update, :destroy]
+
+
           resources :agent_capacity_policies, only: [:index, :create, :show, :update, :destroy] do
             scope module: :agent_capacity_policies do
               resources :users, only: [:index, :create, :destroy]
@@ -305,48 +254,6 @@ Rails.application.routes.draw do
           end
           resource :notification_settings, only: [:show, :update]
 
-          resources :teams do
-            resources :team_members, only: [:index, :create] do
-              collection do
-                delete :destroy
-                patch :update
-              end
-            end
-          end
-
-          # Assignment V2 Routes
-          resources :assignment_policies do
-            resources :inboxes, only: [:index, :create, :destroy], module: :assignment_policies
-          end
-
-          resources :inboxes, only: [] do
-            resource :assignment_policy, only: [:show, :create, :destroy], module: :inboxes
-          end
-
-          namespace :twitter do
-            resource :authorization, only: [:create]
-          end
-
-          namespace :microsoft do
-            resource :authorization, only: [:create]
-          end
-
-          namespace :google do
-            resource :authorization, only: [:create]
-          end
-
-          namespace :instagram do
-            resource :authorization, only: [:create]
-          end
-
-          namespace :tiktok do
-            resource :authorization, only: [:create]
-          end
-
-          namespace :notion do
-            resource :authorization, only: [:create]
-          end
-
           namespace :whatsapp do
             resource :authorization, only: [:create]
             post 'manual/preview', to: 'manual_setup#preview'
@@ -363,65 +270,10 @@ Rails.application.routes.draw do
                 post :process_event
               end
             end
-            resource :slack, only: [:create, :update, :destroy], controller: 'slack' do
-              member do
-                get :list_all_channels
-              end
-            end
-            resource :dyte, controller: 'dyte', only: [] do
-              collection do
-                post :create_a_meeting
-                post :add_participant_to_meeting
-              end
-            end
-            resource :shopify, controller: 'shopify', only: [:destroy] do
-              collection do
-                post :auth
-                get :orders
-              end
-            end
-            resource :linear, controller: 'linear', only: [] do
-              collection do
-                delete :destroy
-                get :teams
-                get :team_entities
-                post :create_issue
-                post :link_issue
-                post :unlink_issue
-                get :search_issue
-                get :linked_issues
-              end
-            end
-            resource :notion, controller: 'notion', only: [] do
-              collection do
-                delete :destroy
-              end
-            end
-          end
-          resources :portals do
-            member do
-              patch :archive
-              delete :logo
-              post :send_instructions
-              get :ssl_status
-            end
-            resources :categories do
-              post :reorder, on: :collection
-            end
-            namespace :articles do
-              resource :bulk_actions, only: [] do
-                post :translate
-                patch :update_status
-                patch :update_category
-                delete :delete_articles
-              end
-            end
-            resources :articles do
-              post :reorder, on: :collection
-            end
           end
 
           resources :upload, only: [:create]
+
         end
       end
       # end of account scoped api routes
@@ -584,21 +436,8 @@ Rails.application.routes.draw do
       end
     end
   end
-
-  get 'hc/:slug', to: 'public/api/v1/portals#show'
-  get 'hc/:slug/sitemap.xml', to: 'public/api/v1/portals#sitemap'
-  get 'hc/:slug/:locale', to: 'public/api/v1/portals#show', as: :public_portal_locale
-  get 'hc/:slug/:locale/search', to: 'public/api/v1/portals/search#index', as: :portal_search
-  get 'hc/:slug/:locale/articles', to: 'public/api/v1/portals/articles#index'
-  get 'hc/:slug/:locale/categories', to: 'public/api/v1/portals/categories#index'
-  get 'hc/:slug/:locale/categories/:category_slug', to: 'public/api/v1/portals/categories#show', as: :public_portal_category
-  get 'hc/:slug/:locale/categories/:category_slug/articles', to: 'public/api/v1/portals/articles#index'
-  get 'hc/:slug/articles/:article_slug.png', to: 'public/api/v1/portals/articles#tracking_pixel'
-  get 'hc/:slug/articles/:article_slug.md', to: 'public/api/v1/portals/articles#show_markdown', as: :public_portal_article_markdown,
-                                            defaults: { format: :md }
-  get 'hc/:slug/articles/:article_slug', to: 'public/api/v1/portals/articles#show', as: :public_portal_article
-
   # ----------------------------------------------------------------------
+
   # Used in mailer templates
   resource :app, only: [:index] do
     resources :accounts do
