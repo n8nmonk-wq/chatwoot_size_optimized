@@ -4,31 +4,58 @@ MMOChat is a lightweight, low-memory WhatsApp conversation platform customized b
 
 ---
 
+## ⚡ Automated CI/CD Architecture (Cloud Prebuilt Images)
+
+To ensure your Hostinger VPS **never crashes or runs out of RAM during builds**, MMOChat uses **GitHub Actions** and **GitHub Container Registry (GHCR)**:
+
+1. **Push Code to `main`**: Whenever you commit and push to `main`, GitHub Actions automatically triggers `.github/workflows/docker-build.yml`.
+2. **Cloud Compilation**: GitHub's 16GB RAM cloud runners build the Docker image and precompile the frontend assets.
+3. **Registry Publication**: The finished production image is pushed directly to:
+   ```
+   ghcr.io/n8nmonk-wq/chatwoot_size_optimized:latest
+   ```
+4. **Fast VPS Pull**: Your VPS doesn't compile a single line of code. It downloads the prebuilt layers in **~20 seconds** and restarts.
+
+---
+
 ## 🚀 Future Updates & Deployments (Fast & Incremental)
 
 ### Do you have to reinstall or re-download everything for future updates?
-**No, never!** You do not need to reinstall packages, set up databases, reconfigure SSL, or re-download everything from scratch.
+**No, never!**
 
 - **Persistent Volumes**: All customer conversations, messages, client logins, WhatsApp tokens, and database records are permanently stored in Docker volumes (`chatwoot_postgres_data`, `chatwoot_redis_data`, `chatwoot_storage_data`). Updating the code never touches or resets your data.
-- **Docker Layer Caching**: System packages, Ruby, Node, and base dependencies are cached by Docker. A new update only compiles the specific files that changed, taking just a couple of minutes.
+- **Zero VPS Compilation**: Because the image is prebuilt by GitHub Actions, your VPS CPU stays low and your SSH session never disconnects.
 - **Automatic Migrations**: Database changes (like adding new columns) are applied automatically without affecting existing tables.
 
-### The Single Command for Future Updates:
-Whenever new changes are pushed to GitHub, SSH into your VPS and run:
+---
+
+### Step 1: One-Time Server Setup for GHCR (Run Once on VPS)
+On your Hostinger VPS, log in to GitHub Container Registry so Docker can pull your image:
+
+```bash
+echo YOUR_GITHUB_PAT | docker login ghcr.io -u n8nmonk-wq --password-stdin
+```
+*(You only ever need to run this once on the VPS).*
+
+---
+
+### Step 2: The Single Command for All Future Updates
+Whenever new code is pushed and the GitHub Actions build finishes, SSH into your VPS and run:
 
 ```bash
 cd /root/chatwoot-docker
-git pull && ./deploy/update-vps.sh
+git stash                    # Discards any local untracked conflicts if present
+git pull origin main         # Pulls latest compose & scripts
+chmod +x deploy/update-vps.sh
+./deploy/update-vps.sh       # Pulls prebuilt image, migrates DB & restarts in ~30s
 ```
 
-*(If you ever have local uncommitted changes on the server, run `git stash` right before `git pull`.)*
-
 #### What `update-vps.sh` does automatically:
-1. Pulls the latest code changes from `main`.
-2. Builds updated Docker images with newly compiled frontend assets (leveraging Docker layer cache).
+1. Pulls the latest configuration and scripts from `main`.
+2. Pulls the latest prebuilt Docker image from `ghcr.io/n8nmonk-wq/chatwoot_size_optimized:latest`.
 3. Runs database migrations (`docker compose run --rm rails bundle exec rails db:migrate`).
 4. Gracefully restarts the Rails web service and Sidekiq worker behind Traefik.
-5. Cleans up dangling/unused Docker build cache to preserve VPS disk space.
+5. Cleans up old Docker image layers to preserve disk space.
 
 ---
 
