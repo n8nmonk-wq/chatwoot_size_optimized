@@ -3,9 +3,9 @@
 
 ___
 
-# Chatwoot
+# MMOChat
 
-The modern customer support platform, an open-source alternative to Intercom, Zendesk, Salesforce Service Cloud etc.
+The streamlined WhatsApp conversation platform by Monk Media One.
 
 <p>
   <img src="https://img.shields.io/circleci/build/github/chatwoot/chatwoot" alt="CircleCI Badge">
