@@ -602,6 +602,7 @@ const menuItems = computed(() => {
       icon: 'i-lucide-megaphone',
       to: accountScopedRoute('campaigns_whatsapp_index'),
       activeOn: ['campaigns_whatsapp_index', 'campaigns_whatsapp_analytics'],
+    },
     {
       name: 'Settings',
       label: t('SIDEBAR.SETTINGS'),
