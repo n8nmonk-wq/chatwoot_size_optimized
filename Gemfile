@@ -108,13 +108,6 @@ gem 'twitty', '~> 0.1.5'
 gem 'koala'
 # slack client
 gem 'slack-ruby-client', '~> 2.7.0'
-# for dialogflow integrations
-gem 'google-cloud-dialogflow-v2', '>= 0.24.0'
-gem 'grpc'
-# Translate integrations
-# 'google-cloud-translate' gem depends on faraday 2.0 version
-# this dependency breaks the slack-ruby-client gem
-gem 'google-cloud-translate-v3', '>= 0.7.0'
 
 ##-- apm and error monitoring ---#
 # loaded only when environment variables are set.
@@ -165,30 +158,7 @@ gem 'lograge', '~> 0.14.0', require: false
 
 gem 'audited', '~> 5.4', '>= 5.4.1'
 
-## Gems for reponse bot
-# adds cosine similarity to postgres using vector extension
-gem 'neighbor'
-gem 'pgvector'
-# Convert Website HTML to Markdown
-gem 'reverse_markdown'
-
-gem 'iso-639'
-gem 'ruby-openai'
-gem 'ai-agents', '>= 0.12.0'
-
-# TODO: Move this gem as a dependency of ai-agents
-gem 'ruby_llm', '>= 1.14.1'
-gem 'ruby_llm-schema'
-
-gem 'cld3', '~> 3.7'
-
-# OpenTelemetry for LLM observability
-gem 'opentelemetry-sdk'
-gem 'opentelemetry-exporter-otlp'
-
 gem 'shopify_api'
-
-gem 'firecrawl-sdk', '~> 1.0', require: 'firecrawl'
 
 ### Gems required only in specific deployment environments ###
 ##############################################################
