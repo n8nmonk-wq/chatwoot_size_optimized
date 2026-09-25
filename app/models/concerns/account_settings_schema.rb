@@ -1,8 +1,8 @@
 module AccountSettingsSchema
   extend ActiveSupport::Concern
 
-  CAPTAIN_MODEL_PROPERTIES = Llm::Models.model_feature_keys.index_with { { 'type': %w[string null] } }.freeze
-  CAPTAIN_FEATURE_PROPERTIES = Llm::Models.feature_keys.index_with { { 'type': %w[boolean null] } }.freeze
+  CAPTAIN_MODEL_PROPERTIES = {}.freeze
+  CAPTAIN_FEATURE_PROPERTIES = {}.freeze
 
   SETTINGS_PARAMS_SCHEMA = {
     'type': 'object',

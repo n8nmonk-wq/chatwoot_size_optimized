@@ -1093,6 +1093,7 @@ DEPENDENCIES
   facebook-messenger
   factory_bot_rails (>= 6.4.3)
   faker
+  faraday-multipart
   faraday_middleware-aws-sigv4
   fcm
   firecrawl-sdk (~> 1.0)

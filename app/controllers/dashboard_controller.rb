@@ -1,6 +1,5 @@
 class DashboardController < ActionController::Base
   include SwitchLocale
-  include PortalHomeData
 
   GLOBAL_CONFIG_KEYS = %w[
     LOGO
@@ -34,7 +33,6 @@ class DashboardController < ActionController::Base
   before_action :set_dashboard_scripts
   around_action :switch_locale
   before_action :ensure_installation_onboarding, only: [:index]
-  before_action :render_hc_if_custom_domain, only: [:index]
   before_action :ensure_html_format
   layout 'vueapp'
 
@@ -56,19 +54,6 @@ class DashboardController < ActionController::Base
 
   def ensure_installation_onboarding
     redirect_to '/installation/onboarding' if ::Redis::Alfred.get(::Redis::Alfred::CHATWOOT_INSTALLATION_ONBOARDING)
-  end
-
-  def render_hc_if_custom_domain
-    domain = request.host
-    return if domain == URI.parse(ENV.fetch('FRONTEND_URL', '')).host
-
-    @portal = Portal.find_by(custom_domain: domain)
-    return unless @portal
-
-    @locale = @portal.default_locale
-    request.variant = :documentation if @portal.layout == 'documentation'
-    load_home_data
-    render 'public/api/v1/portals/show', layout: 'portal', portal: @portal and return
   end
 
   def app_config

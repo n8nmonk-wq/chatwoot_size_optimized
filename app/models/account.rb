@@ -29,7 +29,6 @@ class Account < ApplicationRecord
   include Reportable
   include Featurable
   include CacheKeys
-  include CaptainFeaturable
   include AccountEmailRateLimitable
   include AccountSettingsSchema
 
