@@ -18,6 +18,6 @@ docker compose -f docker-compose.traefik.yaml up -d --remove-orphans
 
 echo "===================================================================="
 echo " UPDATE COMPLETE!"
-echo " Please hard-refresh your browser: Ctrl + Shift + R"
-echo " Dashboard: https://chatwoot.srv1275499.hstgr.cloud"
+echo " Dashboard: https://mmochat.srv1275499.hstgr.cloud"
+echo " Client Login: https://mmochat.srv1275499.hstgr.cloud/client/login"
 echo "===================================================================="

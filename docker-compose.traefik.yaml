@@ -26,7 +26,7 @@ services:
           memory: 900M
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.chatwoot.rule=Host(`chatwoot.srv1275499.hstgr.cloud`)"
+      - "traefik.http.routers.chatwoot.rule=Host(`mmochat.srv1275499.hstgr.cloud`) || Host(`chatwoot.srv1275499.hstgr.cloud`)"
       - "traefik.http.routers.chatwoot.entrypoints=websecure"
       - "traefik.http.routers.chatwoot.tls.certresolver=mytlschallenge"
       - "traefik.http.services.chatwoot.loadbalancer.server.port=3000"
