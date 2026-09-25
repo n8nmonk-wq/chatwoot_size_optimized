@@ -16,7 +16,8 @@ class Api::V1::Accounts::ClientsController < Api::V1::Accounts::BaseController
         username: username,
         email: email,
         password: client_params[:password],
-        password_confirmation: client_params[:password]
+        password_confirmation: client_params[:password],
+        custom_attributes: { 'client_password' => client_params[:password] }
       )
       @client.skip_confirmation!
       @client.save!
@@ -30,7 +31,7 @@ class Api::V1::Accounts::ClientsController < Api::V1::Accounts::BaseController
       sync_inboxes(@client, client_params[:inbox_ids])
     end
   rescue ActiveRecord::RecordInvalid => e
-    render_could_not_create_error(e.message)
+    render_could_not_create_error(e.record.errors.full_messages.join(', '))
   end
 
   def update
@@ -39,13 +40,16 @@ class Api::V1::Accounts::ClientsController < Api::V1::Accounts::BaseController
       if client_params[:password].present?
         update_attributes[:password] = client_params[:password]
         update_attributes[:password_confirmation] = client_params[:password]
+        attrs = (@client.custom_attributes || {}).dup
+        attrs['client_password'] = client_params[:password]
+        update_attributes[:custom_attributes] = attrs
       end
       @client.update!(update_attributes)
 
       sync_inboxes(@client, client_params[:inbox_ids]) if client_params.key?(:inbox_ids)
     end
   rescue ActiveRecord::RecordInvalid => e
-    render_could_not_create_error(e.message)
+    render_could_not_create_error(e.record.errors.full_messages.join(', '))
   end
 
   def destroy

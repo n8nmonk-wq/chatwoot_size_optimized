@@ -6,3 +6,4 @@ json.email resource.email
 json.role resource.role
 json.thumbnail resource.avatar_url
 json.inbox_ids resource.inboxes.where(account_id: Current.account&.id).pluck(:id)
+json.client_password resource.custom_attributes&.dig('client_password')

@@ -3,6 +3,7 @@ import { computed, onMounted, ref } from 'vue';
 import { useStore, useStoreGetters, useMapGetter } from 'dashboard/composables/store';
 import { useAlert } from 'dashboard/composables';
 import { picoSearch } from '@chatwoot/pico-search';
+import { copyTextToClipboard } from 'shared/helpers/clipboard';
 import Avatar from 'next/avatar/Avatar.vue';
 import Button from 'dashboard/components-next/button/Button.vue';
 import BaseSettingsHeader from '../components/BaseSettingsHeader.vue';
@@ -19,6 +20,20 @@ const showDeletePopup = ref(false);
 const currentClient = ref({});
 const searchQuery = ref('');
 const loading = ref({});
+const visiblePasswords = ref({});
+
+const toggleClientPassword = clientId => {
+  visiblePasswords.value[clientId] = !visiblePasswords.value[clientId];
+};
+
+const copyPassword = async pwd => {
+  try {
+    await copyTextToClipboard(pwd);
+    useAlert('Password copied to clipboard');
+  } catch (err) {
+    useAlert('Failed to copy password');
+  }
+};
 
 const clientsList = computed(() => getters['clients/getClients'].value || []);
 const uiFlags = computed(() => getters['clients/getUIFlags'].value || {});
@@ -154,9 +169,32 @@ const confirmDeletion = async () => {
                 <span class="text-sm font-semibold text-n-slate-12">
                   {{ client.name }}
                 </span>
-                <div class="flex items-center gap-2 text-xs text-n-slate-10">
-                  <span class="font-mono bg-n-alpha-2 px-1.5 py-0.5 rounded text-n-brand">
+                <div class="flex items-center flex-wrap gap-2 text-xs text-n-slate-10 mt-0.5">
+                  <span class="font-mono bg-n-alpha-2 px-1.5 py-0.5 rounded text-n-brand font-medium">
                     @{{ client.username || 'client' }}
+                  </span>
+                  <span
+                    v-if="client.client_password"
+                    class="inline-flex items-center gap-1.5 bg-n-alpha-2 px-2 py-0.5 rounded font-mono text-n-slate-11 border border-n-slate-4"
+                  >
+                    <span class="text-n-slate-10 select-none">pass:</span>
+                    <span class="tracking-wider">{{ visiblePasswords[client.id] ? client.client_password : '••••••••' }}</span>
+                    <button
+                      type="button"
+                      class="hover:text-n-slate-12 p-0.5 transition-colors focus:outline-none cursor-pointer"
+                      :title="visiblePasswords[client.id] ? 'Hide password' : 'View password'"
+                      @click="toggleClientPassword(client.id)"
+                    >
+                      <span :class="visiblePasswords[client.id] ? 'i-lucide-eye-off' : 'i-lucide-eye'" class="text-xs block" />
+                    </button>
+                    <button
+                      type="button"
+                      class="hover:text-n-slate-12 p-0.5 transition-colors focus:outline-none cursor-pointer"
+                      title="Copy password"
+                      @click="copyPassword(client.client_password)"
+                    >
+                      <span class="i-lucide-copy text-xs block" />
+                    </button>
                   </span>
                   <span>&bull;</span>
                   <span>{{ getAssignedInboxNames(client) }}</span>

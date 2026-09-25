@@ -10,6 +10,7 @@ const store = useStore();
 const name = ref('');
 const username = ref('');
 const password = ref('');
+const showPassword = ref(false);
 const selectedInboxIds = ref([]);
 const errorMessage = ref('');
 
@@ -55,6 +56,7 @@ const addClient = async () => {
     emit('close');
   } catch (error) {
     const errorMsg =
+      error?.response?.data?.error ||
       error?.response?.data?.message ||
       error?.message ||
       'Could not add client. Please try again.';
@@ -102,16 +104,26 @@ const addClient = async () => {
         <label class="block text-sm font-medium text-n-slate-12 mb-1">
           Password
         </label>
-        <input
-          v-model="password"
-          type="password"
-          placeholder="Initial password (min 6 characters)"
-          class="w-full px-3 py-2 border rounded-md border-n-slate-6 bg-n-alpha-1 text-n-slate-12 text-sm focus:outline-none focus:ring-1 focus:ring-n-brand"
-          minlength="6"
-          required
-        />
+        <div class="relative flex items-center">
+          <input
+            v-model="password"
+            :type="showPassword ? 'text' : 'password'"
+            placeholder="Initial password (e.g. Secret123!)"
+            class="w-full px-3 py-2 pr-10 border rounded-md border-n-slate-6 bg-n-alpha-1 text-n-slate-12 text-sm focus:outline-none focus:ring-1 focus:ring-n-brand"
+            minlength="6"
+            required
+          />
+          <button
+            type="button"
+            class="absolute right-2.5 p-1 text-n-slate-10 hover:text-n-slate-12 transition-colors focus:outline-none"
+            :aria-label="showPassword ? 'Hide password' : 'Show password'"
+            @click="showPassword = !showPassword"
+          >
+            <span :class="showPassword ? 'i-lucide-eye-off' : 'i-lucide-eye'" class="text-base block" />
+          </button>
+        </div>
         <p class="text-xs text-n-slate-10 mt-1">
-          Only administrators can view or reset client passwords.
+          Must contain min 6 characters, with uppercase, lowercase, number, and special character.
         </p>
       </div>
 

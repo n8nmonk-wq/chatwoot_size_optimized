@@ -17,6 +17,7 @@ const store = useStore();
 const name = ref(props.client.name || '');
 const username = ref(props.client.username || '');
 const newPassword = ref('');
+const showPassword = ref(false);
 const selectedInboxIds = ref([...(props.client.inbox_ids || [])]);
 const errorMessage = ref('');
 
@@ -60,6 +61,7 @@ const updateClient = async () => {
     emit('close');
   } catch (error) {
     const errorMsg =
+      error?.response?.data?.error ||
       error?.response?.data?.message ||
       error?.message ||
       'Could not update client. Please try again.';
@@ -104,15 +106,25 @@ const updateClient = async () => {
         <label class="block text-sm font-medium text-n-slate-12 mb-1">
           Reset Password (Admin Only)
         </label>
-        <input
-          v-model="newPassword"
-          type="password"
-          placeholder="Leave blank to keep existing password"
-          minlength="6"
-          class="w-full px-3 py-2 border rounded-md border-n-slate-6 bg-n-alpha-1 text-n-slate-12 text-sm focus:outline-none focus:ring-1 focus:ring-n-brand"
-        />
+        <div class="relative flex items-center">
+          <input
+            v-model="newPassword"
+            :type="showPassword ? 'text' : 'password'"
+            placeholder="Leave blank to keep existing password"
+            minlength="6"
+            class="w-full px-3 py-2 pr-10 border rounded-md border-n-slate-6 bg-n-alpha-1 text-n-slate-12 text-sm focus:outline-none focus:ring-1 focus:ring-n-brand"
+          />
+          <button
+            type="button"
+            class="absolute right-2.5 p-1 text-n-slate-10 hover:text-n-slate-12 transition-colors focus:outline-none"
+            :aria-label="showPassword ? 'Hide password' : 'Show password'"
+            @click="showPassword = !showPassword"
+          >
+            <span :class="showPassword ? 'i-lucide-eye-off' : 'i-lucide-eye'" class="text-base block" />
+          </button>
+        </div>
         <p class="text-xs text-n-slate-10 mt-1">
-          Enter a new password (min 6 characters) to reset this client's password.
+          Enter a new password (min 6 chars, uppercase, lowercase, number, symbol) to reset this client's password.
         </p>
       </div>
 
