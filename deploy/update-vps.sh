@@ -7,8 +7,8 @@ set -e
 echo "===> 1. Pulling latest code from GitHub..."
 git pull origin main
 
-echo "===> 2. Building updated Chatwoot Docker image..."
-docker compose -f docker-compose.traefik.yaml build rails sidekiq
+echo "===> 2. Pulling prebuilt MMOChat Docker image from GitHub Container Registry..."
+docker compose -f docker-compose.traefik.yaml pull rails sidekiq
 
 echo "===> 3. Running database migrations..."
 docker compose -f docker-compose.traefik.yaml run --rm rails bundle exec rails db:migrate
