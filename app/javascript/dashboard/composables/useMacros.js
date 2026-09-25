@@ -6,10 +6,15 @@ import {
   generateLabelOptions,
   generateTeamOptions,
 } from 'dashboard/helper/automationHelper';
-import {
-  resolveActionName,
-  getFileName,
-} from 'dashboard/routes/dashboard/settings/macros/macroHelper';
+const resolveActionName = key => key?.toUpperCase() || '';
+const getFileName = (id, actionType, files) => {
+  if (!id || !files) return '';
+  if (actionType === 'send_attachment') {
+    const file = files.find(item => item.blob_id === id);
+    if (file) return file.filename.toString();
+  }
+  return '';
+};
 
 /**
  * Composable for handling macro-related functionality
