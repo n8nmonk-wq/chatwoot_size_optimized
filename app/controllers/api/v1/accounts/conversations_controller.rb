@@ -38,6 +38,8 @@ class Api::V1::Accounts::ConversationsController < Api::V1::Accounts::BaseContro
   def show; end
 
   def create
+    render_could_not_create_error('Clients cannot initiate new conversations') and return if Current.user.is_a?(User) && Current.user.client?
+
     ActiveRecord::Base.transaction do
       @conversation = ConversationBuilder.new(params: params, contact_inbox: @contact_inbox).perform
       Messages::MessageBuilder.new(Current.user, @conversation, params[:message]).perform if params[:message].present?

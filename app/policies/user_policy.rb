@@ -1,6 +1,6 @@
 class UserPolicy < ApplicationPolicy
   def index?
-    true
+    @account_user.administrator? || @account_user.agent?
   end
 
   def create?

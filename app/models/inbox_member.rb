@@ -29,6 +29,8 @@ class InboxMember < ApplicationRecord
   private
 
   def add_agent_to_round_robin
+    return if user&.client?
+
     ::AutoAssignment::InboxRoundRobinService.new(inbox: inbox).add_agent_to_queue(user_id)
   end
 

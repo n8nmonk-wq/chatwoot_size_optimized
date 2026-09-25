@@ -1,10 +1,10 @@
 class ContactPolicy < ApplicationPolicy
   def index?
-    true
+    !@account_user.client?
   end
 
   def active?
-    true
+    !@account_user.client?
   end
 
   def import?
@@ -16,35 +16,35 @@ class ContactPolicy < ApplicationPolicy
   end
 
   def search?
-    true
+    !@account_user.client?
   end
 
   def filter?
-    true
+    !@account_user.client?
   end
 
   def update?
-    true
+    !@account_user.client?
   end
 
   def contactable_inboxes?
-    true
+    !@account_user.client?
   end
 
   def destroy_custom_attributes?
-    true
+    !@account_user.client?
   end
 
   def show?
-    true
+    !@account_user.client?
   end
 
   def create?
-    true
+    !@account_user.client?
   end
 
   def avatar?
-    true
+    !@account_user.client?
   end
 
   def destroy?

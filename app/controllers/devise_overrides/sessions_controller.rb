@@ -11,6 +11,11 @@ class DeviseOverrides::SessionsController < DeviseTokenAuth::SessionsController
   end
 
   def create
+    if params[:username].present? && params[:email].blank?
+      user = User.from_username(params[:username])
+      params[:email] = user&.email if user
+    end
+
     return handle_mfa_verification if mfa_verification_request?
     return handle_sso_authentication if sso_authentication_request?
 
@@ -38,10 +43,13 @@ class DeviseOverrides::SessionsController < DeviseTokenAuth::SessionsController
   end
 
   def find_user_for_authentication
-    return nil unless params[:email].present? && params[:password].present?
+    return nil unless (params[:email].present? || params[:username].present?) && params[:password].present?
 
-    normalized_email = params[:email].strip.downcase
-    user = User.from_email(normalized_email)
+    user = if params[:username].present?
+             User.from_username(params[:username])
+           else
+             User.from_email(params[:email].strip.downcase)
+           end
     return nil unless user&.valid_password?(params[:password])
     return nil unless user.active_for_authentication?
 

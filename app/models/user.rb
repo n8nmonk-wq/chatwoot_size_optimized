@@ -77,6 +77,11 @@ class User < ApplicationRecord
 
   validates :name, presence: true
   validates :email, presence: true
+  validates :username,
+            uniqueness: { case_sensitive: false },
+            format: { with: /\A[a-zA-Z0-9_]+\z/, message: 'only allows letters, numbers, and underscores' },
+            length: { in: 3..30 },
+            allow_nil: true
 
   serialize :otp_backup_codes, coder: YAML, type: Array
 
@@ -119,6 +124,7 @@ class User < ApplicationRecord
 
   before_validation do
     self.email = email.try(:downcase)
+    self.username = username.to_s.strip.downcase.presence if username.present?
   end
 
   def send_devise_notification(notification, *)
@@ -166,6 +172,12 @@ class User < ApplicationRecord
 
   def self.from_email(email)
     find_by(email: email&.downcase)
+  end
+
+  def self.from_username(username)
+    return nil if username.blank?
+
+    find_by('LOWER(username) = ?', username.to_s.strip.downcase)
   end
 
   # 2FA/MFA Methods
