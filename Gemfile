@@ -97,9 +97,6 @@ gem 'administrate-field-belongs_to_search', '>= 0.10.0'
 # https://karolgalanciak.com/blog/2019/11/30/from-activerecord-callbacks-to-publish-slash-subscribe-pattern-and-event-driven-design/
 gem 'wisper', '2.0.0'
 
-##--- gems for channels ---##
-gem 'twilio-ruby'
-
 ##-- apm and error monitoring ---#
 # loaded only when environment variables are set.
 # ref application.rb

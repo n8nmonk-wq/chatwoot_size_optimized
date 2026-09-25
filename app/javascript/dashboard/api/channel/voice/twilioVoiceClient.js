@@ -1,6 +1,4 @@
-import { Device } from '@twilio/voice-sdk';
-import VoiceAPI from './voiceAPIClient';
-
+// ponytail: @twilio/voice-sdk removed, stub preserves call session consumers
 const createCallDisconnectedEvent = () => new CustomEvent('call:disconnected');
 
 class TwilioVoiceClient extends EventTarget {
@@ -12,85 +10,31 @@ class TwilioVoiceClient extends EventTarget {
     this.inboxId = null;
   }
 
-  async initializeDevice(inboxId) {
-    this.destroyDevice();
-
-    const response = await VoiceAPI.getToken(inboxId);
-    const { token, account_id } = response || {};
-    if (!token) throw new Error('Invalid token');
-
-    this.device = new Device(token, {
-      allowIncomingWhileBusy: true,
-      disableAudioContextSounds: true,
-      appParams: { account_id },
-    });
-
-    this.device.removeAllListeners();
-    this.device.on('connect', conn => {
-      this.activeConnection = conn;
-      conn.on('disconnect', this.onDisconnect);
-    });
-
-    this.device.on('disconnect', this.onDisconnect);
-
-    this.device.on('tokenWillExpire', async () => {
-      const r = await VoiceAPI.getToken(this.inboxId);
-      if (r?.token) this.device.updateToken(r.token);
-    });
-
-    this.initialized = true;
-    this.inboxId = inboxId;
-
-    return this.device;
+  async initializeDevice() {
+    return null;
   }
 
   get hasActiveConnection() {
-    return !!this.activeConnection;
+    return false;
   }
 
-  setMuted(shouldMute) {
-    if (!this.activeConnection) return false;
-    this.activeConnection.mute(shouldMute);
-    return shouldMute;
+  setMuted() {
+    return false;
   }
 
   endClientCall() {
-    if (this.activeConnection) {
-      this.activeConnection.disconnect();
-    }
     this.activeConnection = null;
-    if (this.device) {
-      this.device.disconnectAll();
-    }
   }
 
   destroyDevice() {
-    if (this.device) {
-      this.device.destroy();
-    }
     this.activeConnection = null;
     this.device = null;
     this.initialized = false;
     this.inboxId = null;
   }
 
-  async joinClientCall({ to, conversationId, callSid }) {
-    if (!this.device || !this.initialized || !to) return null;
-    if (this.activeConnection) return this.activeConnection;
-
-    const params = {
-      To: to,
-      is_agent: 'true',
-      conversation_id: conversationId,
-      call_sid: callSid,
-    };
-
-    const connection = await this.device.connect({ params });
-    this.activeConnection = connection;
-
-    connection.on('disconnect', this.onDisconnect);
-
-    return connection;
+  async joinClientCall() {
+    return null;
   }
 
   onDisconnect = () => {
