@@ -12,11 +12,8 @@ import AnalyticsHelper from 'dashboard/helper/AnalyticsHelper';
 import { SESSION_EVENTS } from 'dashboard/helper/AnalyticsHelper/events';
 
 // components
-import SimpleDivider from '../../components/Divider/SimpleDivider.vue';
 import FormInput from '../../components/Form/Input.vue';
-import GoogleOAuthButton from '../../components/GoogleOauth/Button.vue';
 import Spinner from 'shared/components/Spinner.vue';
-import Icon from 'dashboard/components-next/icon/Icon.vue';
 import NextButton from 'dashboard/components-next/button/Button.vue';
 import MfaVerification from 'dashboard/components/auth/MfaVerification.vue';
 import SessionLimitOverlay from 'dashboard/components/auth/SessionLimitOverlay.vue';
@@ -34,13 +31,10 @@ const USER_NOT_CONFIRMED_ERROR_CODE = 'user_not_confirmed';
 export default {
   components: {
     FormInput,
-    GoogleOAuthButton,
     Spinner,
     NextButton,
-    SimpleDivider,
     MfaVerification,
     SessionLimitOverlay,
-    Icon,
   },
   props: {
     ssoAuthToken: { type: String, default: '' },
@@ -94,17 +88,8 @@ export default {
     allowedLoginMethods() {
       return window.chatwootConfig.allowedLoginMethods || ['email'];
     },
-    showGoogleOAuth() {
-      return (
-        this.allowedLoginMethods.includes('google_oauth') &&
-        Boolean(window.chatwootConfig.googleOAuthClientId)
-      );
-    },
     showSignupLink() {
       return window.chatwootConfig.signupEnabled === 'true';
-    },
-    showSamlLogin() {
-      return this.allowedLoginMethods.includes('saml');
     },
   },
   created() {
@@ -339,33 +324,11 @@ export default {
       v-else
       class="bg-white shadow sm:mx-auto mt-11 sm:w-full sm:max-w-lg dark:bg-n-solid-2 p-11 sm:shadow-lg sm:rounded-lg"
       :class="{
-        'mb-8 mt-15': !showGoogleOAuth,
+        'mb-8 mt-15': true,
         'animate-wiggle': loginApi.hasErrored,
       }"
     >
       <div v-if="!email">
-        <div class="flex flex-col gap-4">
-          <GoogleOAuthButton v-if="showGoogleOAuth" />
-          <div v-if="showSamlLogin" class="text-center">
-            <router-link
-              to="/app/login/sso"
-              class="inline-flex justify-center w-full px-4 py-3 items-center bg-n-background dark:bg-n-solid-3 rounded-md shadow-sm ring-1 ring-inset ring-n-container dark:ring-n-container focus:outline-offset-0 hover:bg-n-alpha-2 dark:hover:bg-n-alpha-2"
-            >
-              <Icon
-                icon="i-lucide-lock-keyhole"
-                class="size-5 text-n-slate-11"
-              />
-              <span class="ml-2 text-base font-medium text-n-slate-12">
-                {{ $t('LOGIN.SAML.LABEL') }}
-              </span>
-            </router-link>
-          </div>
-          <SimpleDivider
-            v-if="showGoogleOAuth || showSamlLogin"
-            :label="$t('COMMON.OR')"
-            class="uppercase"
-          />
-        </div>
         <form class="space-y-5" @submit.prevent="submitFormLogin">
           <FormInput
             v-model="credentials.email"
@@ -411,6 +374,14 @@ export default {
             :disabled="loginApi.showLoading"
             :is-loading="loginApi.showLoading"
           />
+          <div class="pt-2 text-center border-t border-n-container">
+            <router-link
+              to="/client/login"
+              class="text-sm font-medium text-n-brand hover:underline"
+            >
+              Are you a client? Log in here &rarr;
+            </router-link>
+          </div>
         </form>
       </div>
       <div v-else class="flex items-center justify-center">

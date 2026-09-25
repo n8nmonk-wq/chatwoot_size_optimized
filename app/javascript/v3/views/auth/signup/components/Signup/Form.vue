@@ -11,7 +11,6 @@ import FormInput from '../../../../../components/Form/Input.vue';
 import NextButton from 'dashboard/components-next/button/Button.vue';
 import PasswordRequirements from './PasswordRequirements.vue';
 import { isValidPassword } from 'shared/helpers/Validators';
-import GoogleOAuthButton from '../../../../../components/GoogleOauth/Button.vue';
 import { register } from '../../../../../api/auth';
 import * as CompanyEmailValidator from 'company-email-validator';
 
@@ -59,16 +58,6 @@ const termsLink = computed(() =>
       'https://www.chatwoot.com/privacy-policy',
       globalConfig.value.privacyURL
     )
-);
-
-const allowedLoginMethods = computed(
-  () => window.chatwootConfig.allowedLoginMethods || ['email']
-);
-
-const showGoogleOAuth = computed(
-  () =>
-    allowedLoginMethods.value.includes('google_oauth') &&
-    Boolean(window.chatwootConfig.googleOAuthClientId)
 );
 
 const isFormValid = computed(() => !v$.value.$invalid);
@@ -181,9 +170,6 @@ const onCaptchaError = () => {
         :is-loading="isSignupInProgress"
       />
     </form>
-    <GoogleOAuthButton v-if="showGoogleOAuth" class="mt-3">
-      {{ $t('REGISTER.OAUTH.GOOGLE_SIGNUP') }}
-    </GoogleOAuthButton>
     <p
       class="text-sm mt-5 mb-0 text-n-slate-11 [&>a]:text-n-blue-10 [&>a]:font-medium [&>a]:hover:text-n-blue-11"
       v-html="termsLink"
