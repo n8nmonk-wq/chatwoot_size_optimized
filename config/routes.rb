@@ -4,8 +4,7 @@ Rails.application.routes.draw do
     confirmations: 'devise_overrides/confirmations',
     passwords: 'devise_overrides/passwords',
     sessions: 'devise_overrides/sessions',
-    token_validations: 'devise_overrides/token_validations',
-    omniauth_callbacks: 'devise_overrides/omniauth_callbacks'
+    token_validations: 'devise_overrides/token_validations'
   }, via: [:get, :post]
 
   post 'resend_confirmation', to: 'auth/resend_confirmations#create'
@@ -64,7 +63,6 @@ Rails.application.routes.draw do
             post :bulk_create, on: :collection
           end
           resources :clients, only: [:index, :create, :update, :destroy]
-          resource :saml_settings, only: [:show, :create, :update, :destroy]
 
           resources :agent_bots, only: [:index, :create, :show, :update, :destroy] do
             delete :avatar, on: :member
@@ -285,9 +283,6 @@ Rails.application.routes.draw do
       namespace :integrations do
         resources :webhooks, only: [:create]
       end
-
-      # Frontend API endpoint to trigger SAML authentication flow
-      post 'auth/saml_login', to: 'auth#saml_login'
 
       resource :profile, only: [:show, :update] do
         delete :avatar, on: :collection
