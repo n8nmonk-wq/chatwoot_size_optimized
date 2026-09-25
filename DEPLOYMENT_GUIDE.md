@@ -1,121 +1,105 @@
-﻿# Chatwoot Low-RAM Deployment & WhatsApp Cloud API Guide
+# MMOChat Hostinger VPS Deployment & Maintenance Guide
 
-This repository has been configured with an **optimized, low-memory production setup** designed specifically for affordable Hostinger VPS instances (2GB to 4GB RAM).
-
----
-
-## 🚀 Part 1: Quick Deployment on Hostinger VPS
-
-### Step 1: Connect to your Hostinger VPS
-Open PowerShell or your terminal and SSH into your VPS:
-```bash
-ssh root@YOUR_VPS_IP
-```
-
-### Step 2: Run the Initial Server Preparation
-Clone this repository (or copy the files) to your VPS:
-```bash
-git clone https://github.com/chatwoot/chatwoot.git /opt/chatwoot
-cd /opt/chatwoot
-```
-
-Make the setup script executable and run it:
-```bash
-chmod +x deploy/setup-vps.sh
-./deploy/setup-vps.sh
-```
-*This automatically creates a 4GB SWAP file, installs Docker, Nginx, and Certbot, and configures the firewall.*
+MMOChat is a lightweight, low-memory WhatsApp conversation platform customized by Monk Media One, built to run smoothly on budget Hostinger VPS instances (2GB to 4GB RAM) with Traefik SSL reverse proxy.
 
 ---
 
-### Step 3: Configure Environment Variables
-Copy the optimized configuration template:
+## 🚀 Quick Deployment & Updates on Hostinger VPS
+
+### Location on Server
+On the production VPS, the repository is deployed at:
 ```bash
-cp .env.production.sample .env
-```
-
-Generate secure secrets on your server using:
-```bash
-openssl rand -hex 64 # for SECRET_KEY_BASE
-openssl rand -hex 16 # for ACTIVE_RECORD_ENCRYPTION_PRIMARY_KEY
-openssl rand -hex 16 # for ACTIVE_RECORD_ENCRYPTION_DETERMINISTIC_KEY
-openssl rand -hex 16 # for ACTIVE_RECORD_ENCRYPTION_KEY_DERIVATION_SALT
-openssl rand -hex 16 # for POSTGRES_PASSWORD and REDIS_PASSWORD
-```
-
-Edit `.env` and fill in:
-- `FRONTEND_URL=https://chat.yourdomain.com`
-- Your generated secrets & passwords
-- Your Hostinger SMTP email details
-
----
-
-### Step 4: Initialize the Database and Start Services
-
-Run database creation and migrations:
-```bash
-docker compose -f docker-compose.optimized.yaml run --rm rails bundle exec rails db:chatwoot_prepare
-```
-
-Start Chatwoot containers in the background:
-```bash
-docker compose -f docker-compose.optimized.yaml up -d
-```
-
-Create your Super Admin account:
-```bash
-docker compose -f docker-compose.optimized.yaml run --rm rails bundle exec rails runner 'SuperAdmin.create!(email: "admin@yourdomain.com", password: "YourSecurePassword123!")'
+/root/chatwoot-docker
 ```
 
 ---
 
-### Step 5: Configure Nginx & SSL Certificate
+### How to Update Production VPS (`deploy/update-vps.sh`)
 
-1. Point your domain's **A record** (`chat.yourdomain.com`) to your VPS IP in your DNS provider (Hostinger / Cloudflare / GoDaddy).
-2. Copy the Nginx config:
-   ```bash
-   sudo cp deploy/nginx.conf /etc/nginx/sites-available/chatwoot
-   sudo sed -i 's/chat.yourdomain.com/YOUR_ACTUAL_DOMAIN/g' /etc/nginx/sites-available/chatwoot
-   sudo ln -s /etc/nginx/sites-available/chatwoot /etc/nginx/sites-enabled/
-   sudo nginx -t
-   sudo systemctl reload nginx
-   ```
-3. Issue a free SSL certificate with Let's Encrypt:
-   ```bash
-   sudo certbot --nginx -d YOUR_ACTUAL_DOMAIN
-   ```
+Whenever updates are pushed to `main` on GitHub, SSH into your Hostinger VPS and execute:
+
+```bash
+cd /root/chatwoot-docker
+git stash                    # Discards any local untracked file conflicts if present
+git pull origin main         # Pulls latest MMOChat code
+chmod +x deploy/update-vps.sh
+./deploy/update-vps.sh       # Automatically rebuilds images, runs migrations, & restarts
+```
+
+#### What `update-vps.sh` does automatically:
+1. Builds updated production images with newly compiled frontend assets.
+2. Runs database migrations (`docker compose run --rm rails bundle exec rails db:migrate`).
+3. Gracefully restarts the Rails web service and Sidekiq worker behind Traefik.
+4. Cleans up dangling/unused Docker images to preserve disk space.
 
 ---
 
-## 📱 Part 2: Setting Up WhatsApp Cloud API for Marketing Messages
+## 🛠️ Server Environment & Architecture
 
-To send outbound marketing broadcasts without getting banned:
+- **Reverse Proxy**: Traefik (with automated Let's Encrypt SSL/TLS termination).
+- **Compose Config**: `docker-compose.traefik.yaml`.
+- **Database**: PostgreSQL 16 (persistent volume `postgres_data`).
+- **Cache & Jobs**: Redis (persistent volume `redis_data`).
+- **Production URL**: `https://chatwoot.srv1275499.hstgr.cloud` (or your mapped custom domain).
+- **Client Login URL**: `https://chatwoot.srv1275499.hstgr.cloud/client/login`
 
-### 1. Create a Meta Developer App
-1. Go to [developers.facebook.com](https://developers.facebook.com) and create a **Business App**.
-2. Add the **WhatsApp** product to your app.
-3. In **API Setup**, connect your Business Phone Number or use a test number.
-4. Obtain:
+---
+
+## 👥 User Roles & Access
+
+| Role | Login Route | Credentials | Capabilities |
+|------|------------|-------------|--------------|
+| **Admin** | `/app/login` | Email + Password | Full access: manage WhatsApp inboxes, agents, clients, settings. |
+| **Agent** | `/app/login` | Email + Password | Full conversation access across assigned inboxes, contacts, CRM. |
+| **Client** | `/client/login` | **Username + Password** | Read-only UI access strictly to assigned WhatsApp inbox conversations; reply capability; no access to settings, contacts, or internal reports. |
+
+### Client Management & Passwords
+1. Admins create clients in **Settings → Clients** (`/app/accounts/{accountId}/settings/clients`).
+2. Each client is assigned a unique username (e.g., `client_acme`) and password.
+3. Passwords can **only** be modified by Admins from the Settings → Clients dashboard. Clients cannot reset or change passwords themselves.
+
+---
+
+## 📱 Setting Up WhatsApp Cloud API
+
+MMOChat is streamlined exclusively for WhatsApp Cloud API.
+
+### 1. Meta Developer Setup
+1. Visit [Meta for Developers](https://developers.facebook.com) and navigate to your WhatsApp Business App.
+2. In **WhatsApp → API Setup**, note:
    - **Phone Number ID**
    - **WhatsApp Business Account ID (WABA ID)**
-   - **Permanent Access Token** (generated via *System Users* in Meta Business Settings).
+   - **System User Permanent Access Token**
 
-### 2. Connect WhatsApp to Chatwoot
-1. Log in to your Chatwoot Dashboard (`https://chat.yourdomain.com`).
-2. Go to **Settings** -> **Inboxes** -> **Add Inbox**.
-3. Select **WhatsApp** -> choose **WhatsApp Cloud API**.
-4. Enter your:
-   - Phone Number
-   - Phone Number ID
-   - Business Account ID (WABA ID)
-   - Permanent Access Token
-5. Chatwoot will provide a **Webhook Callback URL** and **Verify Token**.
-6. Copy these back into your Meta Developer App -> **WhatsApp** -> **Configuration** -> **Webhook**.
-7. Subscribe to the `messages` webhook field.
+### 2. Connect WhatsApp in MMOChat
+1. Log in to MMOChat as Admin (`https://chatwoot.srv1275499.hstgr.cloud`).
+2. Navigate to **Settings → Inboxes → Add Inbox**.
+3. Select **WhatsApp** (Cloud API).
+4. Enter your Phone Number, Phone Number ID, WABA ID, and Permanent Access Token.
+5. Copy the generated **Webhook URL** and **Verify Token** into Meta Developer App (**WhatsApp → Configuration → Webhook**).
+6. Subscribe to the `messages` webhook field in Meta.
+7. Assign your Agents and Clients to the new WhatsApp Inbox.
 
-### 3. Creating & Sending Marketing Message Templates
-1. Go to **Meta WhatsApp Manager** -> **Message Templates**.
-2. Create a template under category **Marketing**.
-3. Add your promo text, variables (`{{1}}`, `{{2}}`), image/header, and call-to-action buttons (e.g., *Visit Website*, *Unsubscribe*).
-4. Submit for Meta review (usually approved in 1–15 minutes).
-5. Once approved, you can trigger these templates from Chatwoot or via Chatwoot campaigns/APIs to initiate conversations without any risk of unofficial number bans!
+---
+
+## 🔍 Useful Diagnostic Commands
+
+Check running containers:
+```bash
+docker ps
+```
+
+View real-time Rails application logs:
+```bash
+docker compose -f docker-compose.traefik.yaml logs -f rails
+```
+
+View real-time Sidekiq worker logs:
+```bash
+docker compose -f docker-compose.traefik.yaml logs -f sidekiq
+```
+
+Open a Rails console:
+```bash
+docker compose -f docker-compose.traefik.yaml run --rm rails bundle exec rails console
+```

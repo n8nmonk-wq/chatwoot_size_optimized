@@ -1,7 +1,18 @@
 # MMOChat — Simplification & Client View Implementation Plan
 
-> **Approach A**: New `client` role with a simplified frontend layout, scoped to assigned WhatsApp inboxes.
-> **Brand**: MMOChat (Monk Media One)
+> **Approach A**: New `client` role with a simplified frontend layout, scoped to assigned WhatsApp inboxes.  
+> **Brand**: MMOChat (Monk Media One)  
+> **Status**: ✅ **ALL PHASES COMPLETED & DEPLOYED TO MAIN**
+
+### 🏁 Implementation Status
+- [x] **Phase 0 — Rebrand to MMOChat**: App name, titles, Monk Media One logo, favicon, and PWA icons integrated.
+- [x] **Phase 1 — Remove Enterprise Directory**: 1,400+ unused enterprise files purged.
+- [x] **Phase 2 — Remove Bloat**: Captain AI, Portals/Help Center, Macros, third-party integrations, and Teams removed.
+- [x] **Phase 3 — WhatsApp-Only Channel UI**: Channel list limited strictly to WhatsApp Cloud API.
+- [x] **Phase 4 — Client Role & Backend Auth**: `AccountUser` enum `client: 2`, `username` migration, Devise username authentication, client password reset restrictions.
+- [x] **Phase 5 — Admin Management for Clients**: Settings → Clients UI, `ClientsController`, Admin-only password updates.
+- [x] **Phase 6 — Client Frontend View**: `/client/login`, simplified client topbar layout in `Dashboard.vue`, route guards, conversation reply-only access.
+- [x] **Phase 7 — Cleanup & Verification**: Dead files removed, `docker-compose.traefik.yaml` configured, `deploy/update-vps.sh` migration support added.
 
 ---
 
