@@ -1,6 +1,7 @@
 import { frontendURL } from 'dashboard/helper/URLHelper';
 
 import Login from './login/Index.vue';
+import ClientLogin from './login/ClientLogin.vue';
 import SamlLogin from './login/Saml.vue';
 import Signup from './auth/signup/Index.vue';
 import ResetPassword from './auth/reset/password/Index.vue';
@@ -9,6 +10,16 @@ import VerifyEmail from './auth/verify-email/Index.vue';
 import PasswordEdit from './auth/password/Edit.vue';
 
 export default [
+  {
+    path: '/client/login',
+    name: 'client_login',
+    component: ClientLogin,
+  },
+  {
+    path: frontendURL('client/login'),
+    name: 'app_client_login',
+    component: ClientLogin,
+  },
   {
     path: frontendURL('login'),
     name: 'login',

@@ -6,6 +6,7 @@ import ConversationView from './ConversationView.vue';
 const CONVERSATION_PERMISSIONS = [
   'administrator',
   'agent',
+  'client',
   'conversation_manage',
   'conversation_unassigned_manage',
   'conversation_participating_manage',
