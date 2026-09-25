@@ -6,13 +6,11 @@ import { useStore } from 'vuex';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 import { useAlert } from 'dashboard/composables';
-import VueHcaptcha from '@hcaptcha/vue3-hcaptcha';
 import FormInput from '../../../../../components/Form/Input.vue';
 import NextButton from 'dashboard/components-next/button/Button.vue';
 import PasswordRequirements from './PasswordRequirements.vue';
 import { isValidPassword } from 'shared/helpers/Validators';
 import { register } from '../../../../../api/auth';
-import * as CompanyEmailValidator from 'company-email-validator';
 
 const MIN_PASSWORD_LENGTH = 6;
 
@@ -20,14 +18,12 @@ const store = useStore();
 const { t } = useI18n();
 const router = useRouter();
 
-const hCaptcha = ref(null);
 const isPasswordFocused = ref(false);
 const isSignupInProgress = ref(false);
 
 const credentials = reactive({
   email: '',
   password: '',
-  hCaptchaClientResponse: '',
 });
 
 const rules = {
@@ -35,9 +31,6 @@ const rules = {
     email: {
       required,
       email,
-      businessEmailValidator(value) {
-        return CompanyEmailValidator.isCompanyEmail(value);
-      },
     },
     password: {
       required,
@@ -72,10 +65,6 @@ const performRegistration = async () => {
     });
   } catch (error) {
     const errorMessage = error?.message || t('REGISTER.API.ERROR_MESSAGE');
-    if (globalConfig.value.hCaptchaSiteKey) {
-      hCaptcha.value.reset();
-      credentials.hCaptchaClientResponse = '';
-    }
     useAlert(errorMessage);
   } finally {
     isSignupInProgress.value = false;
@@ -86,23 +75,7 @@ const submit = () => {
   if (isSignupInProgress.value) return;
   v$.value.$touch();
   if (v$.value.$invalid) return;
-  isSignupInProgress.value = true;
-  if (globalConfig.value.hCaptchaSiteKey) {
-    hCaptcha.value.execute();
-  } else {
-    performRegistration();
-  }
-};
-
-const onRecaptchaVerified = token => {
-  credentials.hCaptchaClientResponse = token;
   performRegistration();
-};
-
-const onCaptchaError = () => {
-  isSignupInProgress.value = false;
-  credentials.hCaptchaClientResponse = '';
-  hCaptcha.value.reset();
 };
 </script>
 
@@ -149,17 +122,6 @@ const onCaptchaError = () => {
           />
         </Transition>
       </div>
-      <VueHcaptcha
-        v-if="globalConfig.hCaptchaSiteKey"
-        ref="hCaptcha"
-        size="invisible"
-        :sitekey="globalConfig.hCaptchaSiteKey"
-        @verify="onRecaptchaVerified"
-        @error="onCaptchaError"
-        @expired="onCaptchaError"
-        @challenge-expired="onCaptchaError"
-        @closed="onCaptchaError"
-      />
       <NextButton
         lg
         type="submit"
