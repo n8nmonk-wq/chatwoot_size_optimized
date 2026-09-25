@@ -98,6 +98,7 @@ yarn-debug.log*
 .claude/
 CLAUDE.local.md
 .token-savior-cache.json
+.token-savior-checkpoints/
 .code-review-graph/
 
 # Histoire deployment
