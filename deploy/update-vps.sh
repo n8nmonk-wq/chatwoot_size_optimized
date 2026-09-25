@@ -10,7 +10,10 @@ git pull origin main
 echo "===> 2. Building updated Chatwoot Docker image..."
 docker compose -f docker-compose.traefik.yaml build rails sidekiq
 
-echo "===> 3. Restarting Chatwoot services..."
+echo "===> 3. Running database migrations..."
+docker compose -f docker-compose.traefik.yaml run --rm rails bundle exec rails db:migrate
+
+echo "===> 4. Restarting Chatwoot services..."
 docker compose -f docker-compose.traefik.yaml up -d --remove-orphans
 
 echo "===================================================================="
