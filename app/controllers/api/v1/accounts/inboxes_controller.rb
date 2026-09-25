@@ -9,7 +9,7 @@ class Api::V1::Accounts::InboxesController < Api::V1::Accounts::BaseController
 
   def index
     @inboxes = policy_scope(Current.account.inboxes)
-               .includes(:channel, :portal, :working_hours, { avatar_attachment: :blob })
+               .includes(:channel, :working_hours, { avatar_attachment: :blob })
                .order_by_name
   end
 

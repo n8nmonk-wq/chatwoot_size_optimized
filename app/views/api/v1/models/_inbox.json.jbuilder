@@ -20,12 +20,6 @@ json.lock_to_single_conversation resource.lock_to_single_conversation
 json.sender_name_type resource.sender_name_type
 json.business_name resource.business_name
 
-if resource.portal.present?
-  json.help_center do
-    json.name resource.portal.name
-    json.slug resource.portal.slug
-  end
-end
 
 ## Channel specific settings
 ## TODO : Clean up and move the attributes into channel sub section
