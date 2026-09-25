@@ -4,44 +4,72 @@ MMOChat is a lightweight, low-memory WhatsApp conversation platform customized b
 
 ---
 
-## 🚀 Quick Deployment & Updates on Hostinger VPS
+## 🚀 Future Updates & Deployments (Fast & Incremental)
 
-### Location on Server
-On the production VPS, the repository is deployed at:
-```bash
-/root/chatwoot-docker
-```
+### Do you have to reinstall or re-download everything for future updates?
+**No, never!** You do not need to reinstall packages, set up databases, reconfigure SSL, or re-download everything from scratch.
 
----
+- **Persistent Volumes**: All customer conversations, messages, client logins, WhatsApp tokens, and database records are permanently stored in Docker volumes (`chatwoot_postgres_data`, `chatwoot_redis_data`, `chatwoot_storage_data`). Updating the code never touches or resets your data.
+- **Docker Layer Caching**: System packages, Ruby, Node, and base dependencies are cached by Docker. A new update only compiles the specific files that changed, taking just a couple of minutes.
+- **Automatic Migrations**: Database changes (like adding new columns) are applied automatically without affecting existing tables.
 
-### How to Update Production VPS (`deploy/update-vps.sh`)
-
-Whenever updates are pushed to `main` on GitHub, SSH into your Hostinger VPS and execute:
+### The Single Command for Future Updates:
+Whenever new changes are pushed to GitHub, SSH into your VPS and run:
 
 ```bash
 cd /root/chatwoot-docker
-git stash                    # Discards any local untracked file conflicts if present
-git pull origin main         # Pulls latest MMOChat code
-chmod +x deploy/update-vps.sh
-./deploy/update-vps.sh       # Automatically rebuilds images, runs migrations, & restarts
+git pull && ./deploy/update-vps.sh
 ```
 
+*(If you ever have local uncommitted changes on the server, run `git stash` right before `git pull`.)*
+
 #### What `update-vps.sh` does automatically:
-1. Builds updated production images with newly compiled frontend assets.
-2. Runs database migrations (`docker compose run --rm rails bundle exec rails db:migrate`).
-3. Gracefully restarts the Rails web service and Sidekiq worker behind Traefik.
-4. Cleans up dangling/unused Docker images to preserve disk space.
+1. Pulls the latest code changes from `main`.
+2. Builds updated Docker images with newly compiled frontend assets (leveraging Docker layer cache).
+3. Runs database migrations (`docker compose run --rm rails bundle exec rails db:migrate`).
+4. Gracefully restarts the Rails web service and Sidekiq worker behind Traefik.
+5. Cleans up dangling/unused Docker build cache to preserve VPS disk space.
 
 ---
 
-## 🛠️ Server Environment & Architecture
+## 🌐 How the Domain & Docker Network Routing Works
 
-- **Reverse Proxy**: Traefik (with automated Let's Encrypt SSL/TLS termination).
-- **Compose Config**: `docker-compose.traefik.yaml`.
-- **Database**: PostgreSQL 16 (persistent volume `postgres_data`).
-- **Cache & Jobs**: Redis (persistent volume `redis_data`).
-- **Production URL**: `https://chatwoot.srv1275499.hstgr.cloud` (or your mapped custom domain).
-- **Client Login URL**: `https://chatwoot.srv1275499.hstgr.cloud/client/login`
+The MMOChat URL (`chatwoot.srv1275499.hstgr.cloud`) is configured across two specific points:
+
+### 1. External Traefik Router & Docker Network (`docker-compose.traefik.yaml`)
+Traefik runs on your Hostinger VPS as a reverse proxy managing incoming HTTP/HTTPS traffic. MMOChat attaches to Traefik via Docker labels and an external Docker network:
+
+```yaml
+    networks:
+      - chatwoot_internal
+      - n8n_default            # Traefik listens on this shared docker bridge network
+
+    labels:
+      - "traefik.enable=true"
+      # Tells Traefik to match incoming HTTPS requests for this host:
+      - "traefik.http.routers.chatwoot.rule=Host(`chatwoot.srv1275499.hstgr.cloud`)"
+      - "traefik.http.routers.chatwoot.entrypoints=websecure"
+      - "traefik.http.routers.chatwoot.tls.certresolver=mytlschallenge"
+      - "traefik.http.services.chatwoot.loadbalancer.server.port=3000"
+      - "traefik.docker.network=n8n_default"
+```
+Because `n8n_default` is marked `external: true`, Traefik automatically discovers the `chatwoot_rails` container, assigns a Let's Encrypt SSL certificate, and routes incoming traffic on port 443 directly to port 3000 inside the container.
+
+### 2. Rails Application URL (`.env`)
+Inside `/root/chatwoot-docker/.env`, the base URL is defined:
+```bash
+FRONTEND_URL=https://chatwoot.srv1275499.hstgr.cloud
+```
+This tells Rails how to format ActionCable WebSocket connections, webhook delivery URLs, and asset URLs.
+
+### 💡 Switching to a Custom Domain (e.g. `chat.yourdomain.com`)
+If you later want to point a custom domain to MMOChat:
+1. Point your domain's DNS **A record** to your Hostinger VPS IP.
+2. In `/root/chatwoot-docker/docker-compose.traefik.yaml`, update:
+   `Host(`chat.yourdomain.com`)`
+3. In `/root/chatwoot-docker/.env`, update:
+   `FRONTEND_URL=https://chat.yourdomain.com`
+4. Run `docker compose -f docker-compose.traefik.yaml up -d rails` — Traefik will automatically issue a new SSL certificate for the new domain!
 
 ---
 
