@@ -98,16 +98,7 @@ gem 'administrate-field-belongs_to_search', '>= 0.10.0'
 gem 'wisper', '2.0.0'
 
 ##--- gems for channels ---##
-gem 'facebook-messenger'
-gem 'line-bot-api'
 gem 'twilio-ruby'
-# twitty will handle subscription of twitter account events
-# gem 'twitty', git: 'https://github.com/chatwoot/twitty'
-gem 'twitty', '~> 0.1.5'
-# facebook client
-gem 'koala'
-# slack client
-gem 'slack-ruby-client', '~> 2.7.0'
 
 ##-- apm and error monitoring ---#
 # loaded only when environment variables are set.
