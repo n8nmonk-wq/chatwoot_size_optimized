@@ -57,7 +57,7 @@ This single command handles rebuilding assets, applying database migrations, and
 ## 📄 Documentation
 
 - [Deployment Guide](./DEPLOYMENT_GUIDE.md) — VPS server setup, Traefik SSL configuration, and WhatsApp Cloud API webhook instructions.
-- [Implementation & Architecture Plan](./PLAN_CLIENT_VIEW.md) — Architectural breakdown of the client role, database migrations, and frontend route guard design.
+- [Implementation & Architecture Plan](./plans/done/000a-client-view.md) — Architectural breakdown of the client role, database migrations, and frontend route guard design.
 
 ---
 

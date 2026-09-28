@@ -107,3 +107,8 @@ CLAUDE.local.md
 .pnpm-store/*
 local/
 Procfile.worktree
+
+# Cloud credentials: never commit
+*key*.json
+*.credentials.json
+secrets/
