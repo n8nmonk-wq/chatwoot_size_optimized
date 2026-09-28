@@ -147,6 +147,7 @@ gem 'lograge', '~> 0.14.0', require: false
 
 gem 'audited', '~> 5.4', '>= 5.4.1'
 
+gem 'pgvector'
 gem 'shopify_api'
 
 ### Gems required only in specific deployment environments ###
