@@ -54,8 +54,8 @@ chmod +x deploy/update-vps.sh deploy/rollback-vps.sh
 
 #### What `update-vps.sh` does automatically:
 1. Pulls latest configuration and scripts from `main`.
-2. Records current running image to `~/backups/last-image.txt`.
-3. Creates a pre-migration streaming compressed database backup to `~/backups/chatwoot-YYYY-MM-DD-HHMM.sql.gz` (and aborts deployment if the backup fails).
+2. Tags the currently running image locally as `ghcr.io/n8nmonk-wq/chatwoot_size_optimized:previous` and saves its ID to `~/backups/last-image.txt`.
+3. Creates a pre-migration streaming compressed database backup (`pg_dump --clean --if-exists`) to `~/backups/chatwoot-YYYY-MM-DD-HHMM.sql.gz` (and aborts deployment and cleans up partial files if the backup fails).
 4. Prunes old backups, retaining the 7 newest dumps.
 5. Pulls the specified Docker image tag (default: `latest`, or custom tag like `sha-a1b2c3d`).
 6. Runs database migrations (`docker compose run --rm rails bundle exec rails db:migrate`).
@@ -65,23 +65,31 @@ chmod +x deploy/update-vps.sh deploy/rollback-vps.sh
 
 ### Step 3: Rollback & Database Restore
 
-If a release causes issues in production, you can roll back instantly to a pinned tag or previous version:
+If a release causes issues in production, you can roll back instantly:
 
 #### 1. Quick Rollback (Without Re-migrating)
-To revert services back to a known working image tag:
+To revert services back to the previous running image:
 ```bash
-./deploy/rollback-vps.sh <tag>
-# Example:
-# ./deploy/rollback-vps.sh sha-a1b2c3d
+# Roll back to the automatically tagged previous image:
+./deploy/rollback-vps.sh
+
+# Or roll back to a specific commit SHA tag:
+./deploy/rollback-vps.sh sha-a1b2c3d
 ```
 > [!NOTE]
-> If you're not sure which image was running before the update, check:
-> `cat ~/backups/last-image.txt`
+> The script checks if the image exists locally before pulling, allowing instant rollback to `:previous` without downloading. You can also view `cat ~/backups/last-image.txt` to see the exact previous image ID.
 
 #### 2. Restoring Database from Backup (if migration broke data)
-If the failed release ran database migrations that require restoring state:
+If the failed release ran database migrations that need to be reversed, stop the application services before restoring to prevent data mixups:
 ```bash
+# 1. Stop Rails and Sidekiq
+docker compose -f docker-compose.traefik.yaml stop rails sidekiq
+
+# 2. Restore database from backup (clean drop & recreate handled by --clean --if-exists)
 gunzip -c ~/backups/<backup-file>.sql.gz | docker exec -i chatwoot_postgres psql -U postgres chatwoot_production
+
+# 3. Restart Rails and Sidekiq
+docker compose -f docker-compose.traefik.yaml start rails sidekiq
 ```
 
 #### 3. Off-Site Backup Copy

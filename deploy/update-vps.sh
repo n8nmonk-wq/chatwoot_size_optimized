@@ -16,18 +16,28 @@ git pull origin main
 echo "===> 2. Creating pre-migration database backup and recording running image..."
 mkdir -p "${BACKUP_DIR}"
 
-# Record currently running image before pulling new one
-docker inspect --format='{{.Config.Image}} (ID: {{.Image}})' chatwoot_rails > "${BACKUP_DIR}/last-image.txt" 2>/dev/null || true
+# Record currently running image ID and tag it locally as :previous for instant rollback
+RUNNING_IMAGE_ID=$(docker inspect --format='{{.Image}}' chatwoot_rails 2>/dev/null || true)
+if [ -n "${RUNNING_IMAGE_ID}" ]; then
+  echo "===> Tagging currently running image (${RUNNING_IMAGE_ID}) as :previous..."
+  docker tag "${RUNNING_IMAGE_ID}" "ghcr.io/n8nmonk-wq/chatwoot_size_optimized:previous" || true
+  echo "${RUNNING_IMAGE_ID}" > "${BACKUP_DIR}/last-image.txt"
+fi
 
-# Stream database dump through gzip
-docker exec chatwoot_postgres pg_dump -U postgres chatwoot_production | gzip > "${BACKUP_FILE}"
+# Clean up partial backup file if the dump pipeline fails
+trap 'echo "ERROR: Backup pipeline failed! Cleaning up partial file..."; rm -f "${BACKUP_FILE:-}"; exit 1' ERR
 
-# Abort deploy if dump failed or file is empty / corrupt
+# Stream database dump with --clean --if-exists through gzip
+docker exec chatwoot_postgres pg_dump -U postgres --clean --if-exists chatwoot_production | gzip > "${BACKUP_FILE}"
+
+# Abort deploy if dump produced an empty file
 if [ ! -s "${BACKUP_FILE}" ]; then
   echo "ERROR: Database backup failed or produced an empty file (${BACKUP_FILE}). Aborting deploy!"
   rm -f "${BACKUP_FILE}"
   exit 1
 fi
+
+trap - ERR
 
 # Keep newest 7 dumps
 find "${BACKUP_DIR}" -maxdepth 1 -name "chatwoot-*.sql.gz" -type f | sort -r | tail -n +8 | while IFS= read -r old_file; do
