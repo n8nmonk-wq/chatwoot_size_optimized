@@ -58,3 +58,7 @@ Name real symbols and files, not placeholders. A plan that says "use the graph" 
 ## Plan housekeeping
 - One plan file per change. Keep `plans/INDEX.md` current: add a row for every new plan; update Status after reviews.
 - After a plan is verified: set Status REVIEWED, `git mv` it to `plans/done/`, update the link in INDEX.md.
+
+## Decisions (from chat)
+- Shopify (2026-09-28): stay on a **custom-distribution** Shopify app for now. It serves one client store, using the global `SHOPIFY_CLIENT_ID`/`SECRET` in Super Admin. Before a second Shopify client connects, write a plan to move the Client ID/Secret onto each account's Shopify hook (one custom app per client), with webhook HMAC checked against that account's secret. A public app is the alternative but needs Shopify review (see chat notes in plan 003's history).
+- Consent: abandoned-cart reminders (plan 002) and order updates (plan 003) go to every customer with a phone number. Opted-out, blocked and `dnd` contacts are always skipped.
