@@ -1,6 +1,6 @@
 # 002 — Shopify abandoned-cart WhatsApp reminder (24h, one client)
 
-**Status:** TODO   <!-- TODO → IN PROGRESS → DONE → REVIEWED -->
+**Status:** IN PROGRESS   <!-- TODO → IN PROGRESS → DONE → REVIEWED -->
 **Author:** Claude · **Implementer:** <Codex / Antigravity / other>
 
 ## Goal
