@@ -22,6 +22,21 @@ vi.mock('dashboard/stores/calls', () => ({
   useCallsStore: () => ({ hasActiveCall: false, hasIncomingCall: false }),
 }));
 
+vi.mock('vuex', async importOriginal => {
+  const actual = await importOriginal();
+  return {
+    ...actual,
+    useStore: () => ({
+      getters: {
+        getCurrentRole: 'administrator',
+        getCurrentUser: { name: 'Test User', username: 'testuser' },
+        getCurrentAccount: { name: 'Test Account' },
+      },
+      dispatch: vi.fn(),
+    }),
+  };
+});
+
 const RoutedContent = { template: '<div class="routed-content" />' };
 
 const ROUTES = [

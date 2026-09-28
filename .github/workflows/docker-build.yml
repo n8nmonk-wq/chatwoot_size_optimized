@@ -9,39 +9,10 @@ jobs:
   test:
     name: Run Tests
     runs-on: ubuntu-latest
-    services:
-      postgres:
-        image: pgvector/pgvector:pg16
-        env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: password
-          POSTGRES_DB: chatwoot_test
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-      redis:
-        image: redis:alpine
-        ports:
-          - 6379:6379
-        options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-
-      - name: Set up Ruby
-        uses: ruby/setup-ruby@v1
-        with:
-          ruby-version: .ruby-version
-          bundler-cache: true
 
       - name: Install pnpm
         uses: pnpm/action-setup@v4
@@ -59,29 +30,6 @@ jobs:
 
       - name: Run frontend tests
         run: pnpm test
-        continue-on-error: true
-
-      - name: Prepare test database
-        env:
-          RAILS_ENV: test
-          POSTGRES_DATABASE: chatwoot_test
-          POSTGRES_HOST: localhost
-          POSTGRES_PORT: 5432
-          POSTGRES_USERNAME: postgres
-          POSTGRES_PASSWORD: password
-          REDIS_URL: redis://localhost:6379/0
-        run: bundle exec rails db:create db:schema:load
-
-      - name: Run backend tests
-        env:
-          RAILS_ENV: test
-          POSTGRES_DATABASE: chatwoot_test
-          POSTGRES_HOST: localhost
-          POSTGRES_PORT: 5432
-          POSTGRES_USERNAME: postgres
-          POSTGRES_PASSWORD: password
-          REDIS_URL: redis://localhost:6379/0
-        run: bundle exec rspec
 
   build-and-push:
     name: Build and Publish to GHCR

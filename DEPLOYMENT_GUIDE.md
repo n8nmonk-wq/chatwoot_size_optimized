@@ -9,7 +9,7 @@ MMOChat is a lightweight, low-memory WhatsApp conversation platform customized b
 To ensure your Hostinger VPS **never crashes or runs out of RAM during builds**, MMOChat uses **GitHub Actions** and **GitHub Container Registry (GHCR)**:
 
 1. **Push Code to `main`**: Whenever you commit and push to `main`, GitHub Actions automatically triggers `.github/workflows/docker-build.yml`.
-2. **Automated Test Gate**: GitHub Actions runs frontend tests (`vitest`) and backend tests (`rspec`) with Postgres & Redis test containers. The image build only proceeds if all tests pass.
+2. **Automated Test Gate**: GitHub Actions runs frontend tests (`vitest`). The image build only proceeds if frontend tests pass (backend RSpec suite pending cleanup in a future plan).
 3. **Cloud Compilation**: GitHub cloud runners build the Docker image and precompile the frontend assets.
 4. **Registry Publication**: The finished production image is pushed with both `:latest` and commit SHA tags:
    ```
