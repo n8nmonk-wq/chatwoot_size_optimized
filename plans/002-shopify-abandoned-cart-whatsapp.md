@@ -72,7 +72,7 @@ One client wants a WhatsApp reminder sent to shoppers who abandon checkout, 24 h
   - In Super Admin → Settings → Shopify: set Client ID and Secret.
   - In Super Admin → Accounts → the client: enable `shopify_integration`.
   - Connect via the API call documented in step P2 (there is no Integrations UI).
-- [ ] 1. **Additive migration.** Add a table `shopify_abandoned_checkout_reminders` with `account_id`, `checkout_id` (Shopify GID, string), `status` (sent / skipped / failed), `reason`, `sent_at` and timestamps, and a **unique index on `[account_id, checkout_id]`**. This is the send-once guarantee.
+- [x] 1. **Additive migration.** Add a table `shopify_abandoned_checkout_reminders` with `account_id`, `checkout_id` (Shopify GID, string), `status` (sent / skipped / failed), `reason`, `sent_at` and timestamps, and a **unique index on `[account_id, checkout_id]`**. This is the send-once guarantee.
 - [ ] 2. **Expiring tokens with backward compatibility.**
   - The callback asks for expiring tokens (`expiring=1` on the code exchange). It stores `access_token` in the hook as today, plus `refresh_token` and `expires_at` in `hook.settings`.
   - Add a single accessor (on `Integrations::Hook` or a tiny `Shopify::AccessToken` object) that returns a valid token, refreshing through `/admin/oauth/access_token` with `grant_type=refresh_token` when `expires_at` is less than 5 minutes away, and saves the new pair.
@@ -110,7 +110,8 @@ One client wants a WhatsApp reminder sent to shoppers who abandon checkout, 24 h
 - [ ] Nothing pushed. Tree clean, committed locally with conventional commits.
 
 ## Implementation notes (implementer)
-<commits, deviations from plan, test pass/fail counts, tools used, open questions>
+- Step P: Gemfile `neighbor` and `oauth2` added, test suite runnable in Docker (`mmochat-test-runner`).
+- Step 1: Additive migration `20260928190000_create_shopify_abandoned_checkout_reminders.rb` created with compound unique index on `[:account_id, :checkout_id]`. Model `Shopify::AbandonedCheckoutReminder` added. Verified rollback and forward migration cleanly. Model spec passes (6 examples, 0 failures). Rubocop clean (3 files inspected, 0 offenses).
 
 ## Review (Claude)
 <verdict, follow-ups>
