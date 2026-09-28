@@ -55,6 +55,11 @@ One client wants a WhatsApp reminder sent to shoppers who abandon checkout, 24 h
 - If a tool is missing or fails, say so in Implementation notes. Never claim you used one when you didn't.
 
 ## Steps
+- [ ] P. **Prerequisite: make targeted RSpec runnable (found in plan 001's review).**
+  - Add `gem 'neighbor'` next to `gem 'pgvector'` in the `Gemfile` and update `Gemfile.lock`. It was removed in `7e23a00`, and without it `db:schema:load` fails with `undefined method 'vector'`.
+  - Regenerate `db/schema.rb` so it includes migration `20260925100000_add_username_to_users` (`db:schema:load db:migrate` updates it). Commit only the schema diff for that migration.
+  - **How to run Ruby specs on this Windows PC (the user approved Docker for tests):** Docker with `ruby:3.4.4` (with `libpq-dev` and `nodejs` apt packages), `pgvector/pgvector:pg16` and `redis:alpine`, repo mounted at `/app`, env `RAILS_ENV=test POSTGRES_HOST=postgres POSTGRES_PASSWORD=password REDIS_URL=redis://redis:6379/0`. Then `bundle install && bundle exec rails db:create db:schema:load` and `bundle exec rspec <paths>`. Never point it at production.
+  - Don't fix the other 734 unrelated failing backend examples here. Only this plan's specs and the Shopify specs it touches must pass.
 - [ ] 0. **Setup checklist (the user does this; the implementer only documents it in `PROJECT.md` → "Shopify integration").** Don't automate it.
   - In the Shopify app's dashboard: set the redirect URL to `<FRONTEND_URL>/shopify/callback`, and request protected-customer-data access for name, email and phone.
   - In Super Admin → Settings → Shopify: set Client ID and Secret.
