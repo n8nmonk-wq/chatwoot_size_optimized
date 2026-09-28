@@ -1,6 +1,6 @@
 # 001 — Deploy hardening: SHA image tags, pre-migrate backup, CI tests
 
-**Status:** DONE   <!-- TODO → IN PROGRESS → DONE → REVIEWED -->
+**Status:** REVIEWED   <!-- TODO → IN PROGRESS → DONE → REVIEWED -->
 **Author:** Claude · **Implementer:** Antigravity
 
 ## Goal
@@ -151,3 +151,11 @@ The app is live with real users. Every push to `main` ships to production, and t
   - Leave the Ruby side (the `neighbor` gem, `pgvector` restored in `cbf9ee2`, and `db/schema.rb`) as it is for now. The backend cleanup plan will handle it.
   - Run `pnpm test` locally if possible (on Windows `TZ=UTC` fails in cmd; use Git Bash or `npx vitest run`) and paste the counts. Then push **`test/ci-test-gate` only** and confirm the run is green.
   - Update the "Automated Test Gate" line in `DEPLOYMENT_GUIDE.md` and `PROJECT.md` to say frontend tests only, with backend specs pending cleanup.
+
+### Final review (Claude): commits e766d1a, f87daab · CI run 36425873698
+**Verdict: REVIEWED.**
+- **Workflow:** frontend-only `test` job with no `continue-on-error`. `build-and-push` has `needs: test` and a `main`-only `if:`, and tags `:latest` + `:sha-<7>`.
+- **Frontend specs:** 17 dead specs + 4 fixtures deleted (sources confirmed gone). `Dashboard.spec.js` now mocks `useStore`, and `Dashboard.vue` is unchanged.
+- **Results:** 378 files / 4,163 tests pass locally, and CI on `test/ci-test-gate` is green (3m 30s).
+- **Deploy scripts:** F1 and F2 were accepted earlier.
+- **Carried to a future backend-cleanup plan (not gated yet):** restore the `neighbor` gem, regenerate `db/schema.rb` with migration `20260925100000`, remove 26 dead backend specs, and triage 734 failing examples in 96 files. Then re-add rspec to the gate.
