@@ -101,13 +101,15 @@ GEM
     annotaterb (4.20.0)
       activerecord (>= 6.0.0)
       activesupport (>= 6.0.0)
+    anonymous_loader (0.1.3)
+      version_gem (~> 1.1, >= 1.1.14)
     ast (2.4.3)
     attr_extras (7.1.0)
     audited (5.4.1)
       activerecord (>= 5.0, < 7.7)
       activesupport (>= 5.0, < 7.7)
-    auth-sanitizer (0.2.1)
-      version_gem (~> 1.1, >= 1.1.10)
+    auth-sanitizer (0.2.3)
+      version_gem (~> 1.1, >= 1.1.14)
     aws-eventstream (1.4.0)
     aws-partitions (1.1198.0)
     aws-sdk-core (3.240.0)
@@ -412,7 +414,6 @@ GEM
     mime-types-data (3.2023.0218.1)
     mini_magick (4.12.0)
     mini_mime (1.1.5)
-    mini_portile2 (2.8.9)
     minitest (5.27.0)
     mock_redis (0.36.0)
       ruby2_keywords
@@ -422,6 +423,8 @@ GEM
       bigdecimal (>= 3.1, < 5)
     multipart-post (2.4.1)
     mutex_m (0.3.0)
+    neighbor (1.2.0)
+      activerecord (>= 7.2)
     net-http (0.9.1)
       uri (>= 0.11.1)
     net-imap (0.6.4.1)
@@ -435,9 +438,6 @@ GEM
       net-protocol
     netrc (0.11.0)
     nio4r (2.7.5)
-    nokogiri (1.19.4)
-      mini_portile2 (~> 2.8.2)
-      racc (~> 1.4)
     nokogiri (1.19.4-arm64-darwin)
       racc (~> 1.4)
     nokogiri (1.19.4-x86_64-darwin)
@@ -455,6 +455,16 @@ GEM
       auth-sanitizer (~> 0.1, >= 0.1.3)
       cgi
       version_gem (~> 1.1, >= 1.1.9)
+    oauth2 (2.0.25)
+      anonymous_loader (~> 0.1, >= 0.1.3)
+      auth-sanitizer (~> 0.2, >= 0.2.3)
+      faraday (>= 0.17.3, < 4.0)
+      jwt (>= 1.0, < 4.0)
+      logger (~> 1.2)
+      multi_xml (~> 0.5)
+      rack (>= 1.2, < 4)
+      snaky_hash (~> 2.0, >= 2.0.7)
+      version_gem (~> 1.1, >= 1.1.14)
     oj (3.17.3)
       bigdecimal (>= 3.0)
       ostruct (>= 0.2)
@@ -713,9 +723,9 @@ GEM
     skooma (0.3.7)
       json_skooma (~> 0.2.5)
       zeitwerk (~> 2.6)
-    snaky_hash (2.0.5)
+    snaky_hash (2.0.7)
       hashie (>= 0.1.0, < 6)
-      version_gem (>= 1.1.8, < 3)
+      version_gem (~> 1.1, >= 1.1.14)
     sorbet-runtime (0.5.11934)
     spring (4.1.1)
     spring-watcher-listen (2.1.0)
@@ -767,7 +777,7 @@ GEM
     valid_email2 (5.2.6)
       activemodel (>= 3.2)
       mail (~> 2.5)
-    version_gem (1.1.11)
+    version_gem (1.1.15)
     vite_rails (3.10.0)
       railties (>= 5.1, < 9)
       vite_ruby (~> 3.0, >= 3.2.2)
@@ -805,7 +815,6 @@ PLATFORMS
   arm64-darwin-20
   arm64-darwin-21
   arm64-darwin-22
-  ruby
   x86_64-darwin-18
   x86_64-darwin-20
   x86_64-darwin-21
@@ -873,7 +882,9 @@ DEPENDENCIES
   maxminddb
   meta_request (>= 0.8.3)
   mock_redis
+  neighbor
   net-smtp (~> 0.3.4)
+  oauth2
   opensearch-ruby
   pg
   pg_search
@@ -936,4 +947,4 @@ RUBY VERSION
    ruby 3.4.4p34
 
 BUNDLED WITH
-   2.5.16
+   2.6.7
