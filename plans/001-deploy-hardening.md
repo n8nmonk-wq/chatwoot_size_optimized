@@ -121,8 +121,25 @@ The app is live with real users. Every push to `main` ships to production, and t
 - **`c0e22e5` (`continue-on-error: true` on frontend tests) must not stay.** With it, the gate lets broken frontend code deploy.
 - **"Prepare test database" fails** (`db:create db:schema:load`, exit 1). The public annotations don't show the error; the step log needs a signed-in GitHub view.
 
-- [ ] **F5. Make the gate green without weakening it.**
-  - Fix `Dashboard.spec.js` so it provides a store (mock `useStore` or pass a Vuex store with `getters.getCurrentRole`, `getCurrentUser`, `getCurrentAccount` and a `dispatch` stub). Don't change `Dashboard.vue` behavior.
-  - Remove `continue-on-error` from the frontend step.
-  - Open the "Prepare test database" step log for the latest run on `test/ci-test-gate`, paste the error (first ~30 lines) into Implementation notes, then fix the root cause (config or env in the workflow, or a missing gem). If it's app code, stop and report instead.
-  - Push `test/ci-test-gate` only. Record `pnpm test` counts, rspec duration and failing spec files. If rspec has failures, list them and stop; a separate plan will handle them.
+- [x] ~~F5~~ **Superseded by F6.** The user decided (2026-09-28) to gate deploys on the frontend tests only, for now.
+
+### Re-review 4 (Claude): local Docker test runs, same images as CI
+- **Frontend (`pnpm test`):** 4,163 tests. 14 fail, all in `Dashboard.spec.js` (missing Vuex store; see re-review 3). 17 more spec files fail to **load** because they import modules that the fork deleted:
+  - `app/javascript/dashboard/api/specs/article.spec.js`, `api/specs/macros.spec.js`, `api/specs/portals.spec.js`, `api/specs/helpCenter/categories.spec.js`
+  - `app/javascript/dashboard/helper/specs/macrosHelper.spec.js`
+  - `app/javascript/dashboard/store/modules/specs/{customRole,macros,teamMembers,teams}/` (actions, getters, mutations specs plus `fixtures.js`)
+  - The sources are confirmed gone: `api/helpCenter`, `api/macros.js`, `store/modules/{customRole,macros,teamMembers,teams}`, `routes/dashboard/settings/macros`.
+- **Backend (not gated, for a later plan):**
+  - `db:schema:load` fails with `undefined method 'vector'`. The `neighbor` gem was removed in `7e23a00`; adding `gem 'neighbor'` back is confirmed to fix it.
+  - `db/schema.rb` is missing migration `20260925100000_add_username_to_users`.
+  - 26 spec files test deleted code (Captain, OpenAI, Dialogflow, Dyte, Portal/Article/Category, Macros, Google Translate).
+  - With those excluded: ~5,057 examples, **734 failures in 96 files**, 4.4 minutes on 6 parallel shards.
+  - This needs its own cleanup plan before rspec can gate deploys.
+
+- [ ] **F6. Gate on frontend tests only, and make them green.**
+  - In `.github/workflows/docker-build.yml`, the `test` job keeps: checkout, Node from `.nvmrc`, pnpm, `pnpm install --frozen-lockfile`, `pnpm test`. **Remove** the Ruby setup, the Postgres and Redis services, "Prepare test database" and "Run backend tests". **Remove `continue-on-error`.** Keep `build-and-push` `needs: test` and its `main`-only `if:`.
+  - Delete the 17 dead frontend spec files (and the four `fixtures.js` in those spec folders) listed above. They test code that no longer exists.
+  - Fix `app/javascript/dashboard/routes/dashboard/specs/Dashboard.spec.js` to provide a Vuex store: mock `useStore` from `vuex`, with getters `getCurrentRole`, `getCurrentUser`, `getCurrentAccount` and a `dispatch` stub. **Don't change `Dashboard.vue`.**
+  - Leave the Ruby side (the `neighbor` gem, `pgvector` restored in `cbf9ee2`, and `db/schema.rb`) as it is for now. The backend cleanup plan will handle it.
+  - Run `pnpm test` locally if possible (on Windows `TZ=UTC` fails in cmd; use Git Bash or `npx vitest run`) and paste the counts. Then push **`test/ci-test-gate` only** and confirm the run is green.
+  - Update the "Automated Test Gate" line in `DEPLOYMENT_GUIDE.md` and `PROJECT.md` to say frontend tests only, with backend specs pending cleanup.
