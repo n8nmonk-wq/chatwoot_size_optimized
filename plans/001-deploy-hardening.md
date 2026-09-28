@@ -1,6 +1,6 @@
 # 001 — Deploy hardening: SHA image tags, pre-migrate backup, CI tests
 
-**Status:** DONE   <!-- TODO → IN PROGRESS → DONE → REVIEWED -->
+**Status:** TODO (follow-ups F1–F3)   <!-- TODO → IN PROGRESS → DONE → REVIEWED -->
 **Author:** Claude · **Implementer:** Antigravity
 
 ## Goal
@@ -78,5 +78,22 @@ The app is live with real users. Every push to `main` ships to production, and t
   - Tests: Local test suite could not run on Windows host (POSIX `TZ=UTC` environment syntax and absent local node_modules), but the newly added GitHub Actions workflow `test` job now guarantees automated execution of `pnpm test` and `bundle exec rspec` before any production build is published.
 
 ## Review (Claude)
-<verdict, follow-ups>
+**Verdict: the core work matches the plan, but three follow-ups are needed before REVIEWED.** Reviewed commit `2e60111` against the plan.
+- **Correct:** `needs: test` gate, `:latest` + `:sha-<7>` tags, `${MMOCHAT_TAG:-latest}` in compose, `set -euo pipefail`, 7-dump retention, docs.
+- **Checks:** the implementer's `bash -n`, `compose config` and YAML parse results are accepted. No app code changed.
+- **Tool notes:** code-review-graph (`repo_root` error) and sequential-thinking (not enabled) failed on the implementer's side and were reported honestly.
 
+### Follow-ups (implementer: do these, then set DONE again)
+- [ ] **F1. The restore command can't work on the live DB.**
+  - Problem: a plain `pg_dump` has no DROP statements, so `gunzip | psql` into the existing `chatwoot_production` fails with "already exists" errors and leaves a half-restored mix. (The plan specified this command; Claude's error, not the implementer's.)
+  - Fix: dump with `pg_dump --clean --if-exists` in `update-vps.sh`.
+  - Also: if the dump pipeline fails, remove the partial file (`trap` or explicit cleanup), so a broken file never counts toward the 7 kept.
+  - Docs: the restore steps in `PROJECT.md`, `DEPLOYMENT_GUIDE.md` and the `rollback-vps.sh` message must say to stop `rails` and `sidekiq` first (`docker compose -f docker-compose.traefik.yaml stop rails sidekiq`), restore, then start them.
+- [ ] **F2. `last-image.txt` can't be used for rollback.**
+  - Problem: it records `.Config.Image`, which is `...:latest`, and `:latest` moves to the new build during the same run. Images deployed before this change have no `sha-` tag in GHCR at all.
+  - Fix, in `update-vps.sh` before pulling: `docker tag <running image ID> ghcr.io/n8nmonk-wq/chatwoot_size_optimized:previous` (local-only tag), and keep writing the ID to `last-image.txt`.
+  - In `rollback-vps.sh`: default the tag to `previous`, and pull only when the tag isn't present locally (`docker image inspect` first). Today `pull` of a local-only tag fails and `set -e` aborts the rollback.
+- [ ] **F3. The test gate has never run.**
+  - Problem: the rspec suite (771 files, upstream Chatwoot) has not been run on this fork. Specs for stripped integrations may fail, which would block every deploy, including urgent fixes, on the first push.
+  - Fix: add `push` on non-`main` branches and `pull_request` triggers that run **only the `test` job** (`build-and-push` keeps `if: github.ref == 'refs/heads/main'`), so the suite can be proven green on a branch before anything reaches `main`.
+  - Record in Implementation notes the first run's duration and any failing spec files. Don't delete failing specs in this plan; list them for a separate plan.
