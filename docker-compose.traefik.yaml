@@ -1,6 +1,6 @@
 services:
   rails:
-    image: ghcr.io/n8nmonk-wq/chatwoot_size_optimized:latest
+    image: ghcr.io/n8nmonk-wq/chatwoot_size_optimized:${MMOCHAT_TAG:-latest}
     container_name: chatwoot_rails
     restart: unless-stopped
     env_file: .env
@@ -33,7 +33,7 @@ services:
       - "traefik.docker.network=n8n_default"
 
   sidekiq:
-    image: ghcr.io/n8nmonk-wq/chatwoot_size_optimized:latest
+    image: ghcr.io/n8nmonk-wq/chatwoot_size_optimized:${MMOCHAT_TAG:-latest}
     container_name: chatwoot_sidekiq
     restart: unless-stopped
     env_file: .env

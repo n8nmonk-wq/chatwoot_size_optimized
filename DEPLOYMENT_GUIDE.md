@@ -9,12 +9,14 @@ MMOChat is a lightweight, low-memory WhatsApp conversation platform customized b
 To ensure your Hostinger VPS **never crashes or runs out of RAM during builds**, MMOChat uses **GitHub Actions** and **GitHub Container Registry (GHCR)**:
 
 1. **Push Code to `main`**: Whenever you commit and push to `main`, GitHub Actions automatically triggers `.github/workflows/docker-build.yml`.
-2. **Cloud Compilation**: GitHub's 16GB RAM cloud runners build the Docker image and precompile the frontend assets.
-3. **Registry Publication**: The finished production image is pushed directly to:
+2. **Automated Test Gate**: GitHub Actions runs frontend tests (`vitest`) and backend tests (`rspec`) with Postgres & Redis test containers. The image build only proceeds if all tests pass.
+3. **Cloud Compilation**: GitHub cloud runners build the Docker image and precompile the frontend assets.
+4. **Registry Publication**: The finished production image is pushed with both `:latest` and commit SHA tags:
    ```
    ghcr.io/n8nmonk-wq/chatwoot_size_optimized:latest
+   ghcr.io/n8nmonk-wq/chatwoot_size_optimized:sha-<commit-sha>
    ```
-4. **Fast VPS Pull**: Your VPS doesn't compile a single line of code. It downloads the prebuilt layers in **~20 seconds** and restarts.
+5. **Fast VPS Pull**: Your VPS doesn't compile a single line of code. It downloads the prebuilt layers in **~20 seconds** and restarts.
 
 ---
 
@@ -25,7 +27,7 @@ To ensure your Hostinger VPS **never crashes or runs out of RAM during builds**,
 
 - **Persistent Volumes**: All customer conversations, messages, client logins, WhatsApp tokens, and database records are permanently stored in Docker volumes (`chatwoot_postgres_data`, `chatwoot_redis_data`, `chatwoot_storage_data`). Updating the code never touches or resets your data.
 - **Zero VPS Compilation**: Because the image is prebuilt by GitHub Actions, your VPS CPU stays low and your SSH session never disconnects.
-- **Automatic Migrations**: Database changes (like adding new columns) are applied automatically without affecting existing tables.
+- **Automatic Migrations & Pre-Migrate Backups**: Database changes are applied automatically, but a full streaming PostgreSQL backup is taken immediately before any migration runs.
 
 ---
 
@@ -46,16 +48,47 @@ Whenever new code is pushed and the GitHub Actions build finishes, SSH into your
 cd /root/chatwoot-docker
 git stash                    # Discards any local untracked conflicts if present
 git pull origin main         # Pulls latest compose & scripts
-chmod +x deploy/update-vps.sh
-./deploy/update-vps.sh       # Pulls prebuilt image, migrates DB & restarts in ~30s
+chmod +x deploy/update-vps.sh deploy/rollback-vps.sh
+./deploy/update-vps.sh       # Deploys latest (or pass a tag: ./deploy/update-vps.sh sha-a1b2c3d)
 ```
 
 #### What `update-vps.sh` does automatically:
-1. Pulls the latest configuration and scripts from `main`.
-2. Pulls the latest prebuilt Docker image from `ghcr.io/n8nmonk-wq/chatwoot_size_optimized:latest`.
-3. Runs database migrations (`docker compose run --rm rails bundle exec rails db:migrate`).
-4. Gracefully restarts the Rails web service and Sidekiq worker behind Traefik.
-5. Cleans up old Docker image layers to preserve disk space.
+1. Pulls latest configuration and scripts from `main`.
+2. Records current running image to `~/backups/last-image.txt`.
+3. Creates a pre-migration streaming compressed database backup to `~/backups/chatwoot-YYYY-MM-DD-HHMM.sql.gz` (and aborts deployment if the backup fails).
+4. Prunes old backups, retaining the 7 newest dumps.
+5. Pulls the specified Docker image tag (default: `latest`, or custom tag like `sha-a1b2c3d`).
+6. Runs database migrations (`docker compose run --rm rails bundle exec rails db:migrate`).
+7. Gracefully restarts Rails web service and Sidekiq worker behind Traefik.
+
+---
+
+### Step 3: Rollback & Database Restore
+
+If a release causes issues in production, you can roll back instantly to a pinned tag or previous version:
+
+#### 1. Quick Rollback (Without Re-migrating)
+To revert services back to a known working image tag:
+```bash
+./deploy/rollback-vps.sh <tag>
+# Example:
+# ./deploy/rollback-vps.sh sha-a1b2c3d
+```
+> [!NOTE]
+> If you're not sure which image was running before the update, check:
+> `cat ~/backups/last-image.txt`
+
+#### 2. Restoring Database from Backup (if migration broke data)
+If the failed release ran database migrations that require restoring state:
+```bash
+gunzip -c ~/backups/<backup-file>.sql.gz | docker exec -i chatwoot_postgres psql -U postgres chatwoot_production
+```
+
+#### 3. Off-Site Backup Copy
+To safely store a copy of the database backup on your local computer:
+```bash
+scp root@<VPS_IP>:~/backups/chatwoot-YYYY-MM-DD-HHMM.sql.gz .
+```
 
 ---
 

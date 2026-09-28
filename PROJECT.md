@@ -21,9 +21,11 @@ MMOChat is a size-optimized Chatwoot fork by Monk Media One for agencies and bus
 ## Deployment
 - Where: Hostinger VPS (srv1275499.hstgr.cloud), app folder `/root/chatwoot-docker`, domain `mmochat.srv1275499.hstgr.cloud` (behind Traefik with SSL)
 - Status: live with real users
-- How: a push to `main` triggers `.github/workflows/docker-build.yml`, which builds `docker/Dockerfile` in GitHub Actions and pushes `ghcr.io/n8nmonk-wq/chatwoot_size_optimized:latest`. On the VPS, `deploy/update-vps.sh` pulls it, runs `rails db:migrate` and restarts with `docker compose -f docker-compose.traefik.yaml up -d`. First install: `deploy/deploy-to-vps.sh`.
-- Before deploying: tests green → Postgres backup (`pg_dump`) copied off the server → push/pull → smoke test the login page.
-- Rollback: re-tag and pull the previous GHCR image digest, then `docker compose -f docker-compose.traefik.yaml up -d`
+- How: a push to `main` triggers `.github/workflows/docker-build.yml` (tests gate the build), which builds `docker/Dockerfile` in GitHub Actions and pushes `ghcr.io/n8nmonk-wq/chatwoot_size_optimized:latest` and `:sha-<short sha>`. On the VPS, `deploy/update-vps.sh [tag]` takes a pre-migration streaming backup to `~/backups/` (keeps 7 newest), logs running image to `~/backups/last-image.txt`, pulls the tag (default: `latest`), runs `rails db:migrate` and restarts with `docker compose -f docker-compose.traefik.yaml up -d`. First install: `deploy/deploy-to-vps.sh`.
+- Deploying specific tag: `./deploy/update-vps.sh <tag>` (e.g. `sha-a1b2c3d`)
+- Rollback: `./deploy/rollback-vps.sh <tag>` (restarts services on that tag without migrating). Check `~/backups/last-image.txt` for previous image.
+- Database restore: `gunzip -c ~/backups/<file>.sql.gz | docker exec -i chatwoot_postgres psql -U postgres chatwoot_production`
+- Before deploying: tests green → Postgres backup (`pg_dump`) copied off the server (`scp root@<VPS_IP>:~/backups/... .`) → push/pull → smoke test the login page.
 - Data: Docker volumes `chatwoot_postgres_data`, `chatwoot_redis_data`, `chatwoot_storage_data`. Never delete them.
 - Env vars needed on the server (see `.env.production.sample`): FRONTEND_URL, SECRET_KEY_BASE, ACTIVE_RECORD_ENCRYPTION_*, POSTGRES_*, REDIS_URL, REDIS_PASSWORD, SMTP_*, MAILER_SENDER_EMAIL, RAILS_ENV, WEB_CONCURRENCY, RAILS_MAX_THREADS, SIDEKIQ_CONCURRENCY
 - Full guide: `DEPLOYMENT_GUIDE.md`
