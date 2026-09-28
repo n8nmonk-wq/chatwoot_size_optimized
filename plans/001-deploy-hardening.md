@@ -97,3 +97,20 @@ The app is live with real users. Every push to `main` ships to production, and t
   - Problem: the rspec suite (771 files, upstream Chatwoot) has not been run on this fork. Specs for stripped integrations may fail, which would block every deploy, including urgent fixes, on the first push.
   - Fix: add `push` on non-`main` branches and `pull_request` triggers that run **only the `test` job** (`build-and-push` keeps `if: github.ref == 'refs/heads/main'`), so the suite can be proven green on a branch before anything reaches `main`.
   - Record in Implementation notes the first run's duration and any failing spec files. Don't delete failing specs in this plan; list them for a separate plan.
+
+### Re-review 2 (Claude): commits 7e7f76a, 4c58428, 3b3322a
+- **F1 accepted:** `--clean --if-exists`, ERR trap removes a partial dump, and the stop/restore/start steps are documented.
+- **F2 accepted:** the running image is tagged `:previous` locally, and `rollback-vps.sh` defaults to it and skips the pull when the tag exists locally.
+- **F3 is still open.** The branch `test/ci-test-gate` was pushed, and all three runs fail at **"Install frontend dependencies"** (run 36407775204). Rspec has never run.
+- **Root cause: both lockfiles are stale after the dependency cleanup, not a CI problem.**
+  - `pnpm-lock.yaml` (last changed in `0515d7b`) still lists `@amplitude/analytics-browser`, `@hcaptcha/vue3-hcaptcha`, `@twilio/voice-sdk` and `company-email-validator`, which `9ee2f50` and `9eab922` removed from `package.json`. That's why `--frozen-lockfile` fails.
+  - `Gemfile.lock` was edited alongside `Gemfile` in `f302ea2` and no longer matches it. That's why a frozen bundle fails.
+  - Production never noticed because `docker/Dockerfile` runs plain `pnpm i` and `bundle install`, which quietly re-resolve.
+- **Commit `4c58428` (`bundle config set --local frozen false`) hides the problem instead of fixing it. Revert it.**
+
+- [ ] **F4. Regenerate both lockfiles and keep CI frozen.**
+  - Run `pnpm install --lockfile-only` (works on this Windows host: Node 24 + pnpm 10.2 are installed) and commit `pnpm-lock.yaml`.
+  - Regenerate `Gemfile.lock` with Ruby 3.4.4 / Bundler 2.5.16 (`bundle lock`), in WSL or wherever Ruby is available. Docker only if the user says so. Keep the existing PLATFORMS list, including `x86_64-linux`, and commit it.
+  - Revert `4c58428`: go back to `bundler-cache: true` so the install is frozen.
+  - Push only the `test/ci-test-gate` branch (never `main`), then record the run's result in Implementation notes: install time, `pnpm test` counts, `rspec` duration, and the list of failing spec files.
+  - If specs fail, stop and list them. Don't delete or skip them in this plan.
