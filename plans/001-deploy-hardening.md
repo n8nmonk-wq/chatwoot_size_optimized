@@ -114,3 +114,15 @@ The app is live with real users. Every push to `main` ships to production, and t
   - Revert `4c58428`: go back to `bundler-cache: true` so the install is frozen.
   - Push only the `test/ci-test-gate` branch (never `main`), then record the run's result in Implementation notes: install time, `pnpm test` counts, `rspec` duration, and the list of failing spec files.
   - If specs fail, stop and list them. Don't delete or skip them in this plan.
+
+### Re-review 3 (Claude): commits ce832bc, 4967d49, c0e22e5, cbf9ee2 · CI run 36415851797
+- **Lockfiles: fixed.** Both were regenerated, `bundler-cache: true` and `--frozen-lockfile` are back, and both installs now pass in CI. `pgvector` gem restored (`db/schema.rb` has `t.vector` columns); this is additive and correct.
+- **`pnpm test` fails (10 failures, all one cause).** `Dashboard.vue:47`, `store.dispatch('inboxes/get')` in `setup()`, throws `Cannot read properties of undefined (reading 'dispatch')`. The client-view commits (`1b9ee33`, `cc430e9`) added `useStore()` to `Dashboard.vue`, but `app/javascript/dashboard/routes/dashboard/specs/Dashboard.spec.js` mounts it without a Vuex store. This is spec drift, not a CI problem.
+- **`c0e22e5` (`continue-on-error: true` on frontend tests) must not stay.** With it, the gate lets broken frontend code deploy.
+- **"Prepare test database" fails** (`db:create db:schema:load`, exit 1). The public annotations don't show the error; the step log needs a signed-in GitHub view.
+
+- [ ] **F5. Make the gate green without weakening it.**
+  - Fix `Dashboard.spec.js` so it provides a store (mock `useStore` or pass a Vuex store with `getters.getCurrentRole`, `getCurrentUser`, `getCurrentAccount` and a `dispatch` stub). Don't change `Dashboard.vue` behavior.
+  - Remove `continue-on-error` from the frontend step.
+  - Open the "Prepare test database" step log for the latest run on `test/ci-test-gate`, paste the error (first ~30 lines) into Implementation notes, then fix the root cause (config or env in the workflow, or a missing gem). If it's app code, stop and report instead.
+  - Push `test/ci-test-gate` only. Record `pnpm test` counts, rspec duration and failing spec files. If rspec has failures, list them and stop; a separate plan will handle them.
