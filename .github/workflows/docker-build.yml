@@ -41,11 +41,7 @@ jobs:
         uses: ruby/setup-ruby@v1
         with:
           ruby-version: .ruby-version
-
-      - name: Install Ruby dependencies
-        run: |
-          bundle config set --local frozen false
-          bundle install --jobs 4 --retry 3
+          bundler-cache: true
 
       - name: Install pnpm
         uses: pnpm/action-setup@v4
@@ -59,7 +55,7 @@ jobs:
           cache: pnpm
 
       - name: Install frontend dependencies
-        run: pnpm install --no-frozen-lockfile
+        run: pnpm install --frozen-lockfile
 
       - name: Run frontend tests
         run: pnpm test
