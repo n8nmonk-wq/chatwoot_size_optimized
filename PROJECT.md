@@ -40,3 +40,23 @@ MMOChat is a size-optimized Chatwoot fork by Monk Media One for agencies and bus
 - `spec/` — RSpec tests
 - `docker/`, `docker-compose.traefik.yaml`, `deploy/` — production image and VPS scripts
 - `plans/` — Claude/implementer plans (see `plans/INDEX.md`)
+
+## Shopify integration
+
+### Setup & Connection
+1. **Shopify App Dashboard**: Set App URL and Redirect URL to `https://<FRONTEND_URL host>/shopify/callback`. In API access, request protected-customer-data access for name, email, and phone.
+2. **Super Admin**: Settings → Shopify → configure Client ID and Client Secret (`SHOPIFY_CLIENT_ID` and `SHOPIFY_CLIENT_SECRET`).
+3. **Enable Feature**: In `rails console` (Super Admin has no feature checkboxes in OSS):
+   ```ruby
+   Account.find(1).enable_features!('shopify_integration')
+   ```
+4. **Connect Store**: Connecting is an admin-only action via the API (there is no Integrations settings UI in the dashboard):
+   ```bash
+   curl -X POST \
+     -H "api_access_token: <admin token from Profile settings>" \
+     -H "Content-Type: application/json" \
+     -d '{"shop_domain":"<store>.myshopify.com"}' \
+     https://<FRONTEND_URL host>/api/v1/accounts/1/integrations/shopify/auth
+   ```
+   Open the returned `redirect_url` in a browser, approve permissions in Shopify. Shopify redirects to `/shopify/callback`, which creates or updates the integration hook.
+

@@ -90,7 +90,6 @@ Rails.application.routes.draw do
           end
           resources :sla_policies, only: [:index, :create, :show, :update, :destroy]
 
-
           resources :agent_capacity_policies, only: [:index, :create, :show, :update, :destroy] do
             scope module: :agent_capacity_policies do
               resources :users, only: [:index, :create, :destroy]
@@ -233,7 +232,6 @@ Rails.application.routes.draw do
             end
           end
 
-
           resources :inbox_members, only: [:create, :show], param: :inbox_id do
             collection do
               delete :destroy
@@ -271,10 +269,15 @@ Rails.application.routes.draw do
                 post :process_event
               end
             end
+            resource :shopify, controller: 'shopify', only: [:destroy] do
+              collection do
+                post :auth
+                get :orders
+              end
+            end
           end
 
           resources :upload, only: [:create]
-
         end
       end
       # end of account scoped api routes
@@ -473,7 +476,6 @@ Rails.application.routes.draw do
     resources :callback, only: [:create]
     resources :delivery_status, only: [:create]
   end
-
 
   get 'microsoft/callback', to: 'microsoft/callbacks#show'
   get 'google/callback', to: 'google/callbacks#show'

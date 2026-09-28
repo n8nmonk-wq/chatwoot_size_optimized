@@ -11,18 +11,20 @@ end
 
 RSpec.describe 'Shopify Integration API', type: :request do
   let(:account) { create(:account) }
+  let(:admin) { create(:user, account: account, role: :administrator) }
   let(:agent) { create(:user, account: account, role: :agent) }
+  let(:client) { create(:user, account: account, role: :client) }
   let(:unauthorized_agent) { create(:user, account: account, role: :agent) }
   let(:contact) { create(:contact, account: account, email: 'test@example.com', phone_number: '+1234567890') }
 
   describe 'POST /api/v1/accounts/:account_id/integrations/shopify/auth' do
     let(:shop_domain) { 'test-store.myshopify.com' }
 
-    context 'when it is an authenticated user' do
+    context 'when it is an administrator' do
       it 'returns a redirect URL for Shopify OAuth' do
         post "/api/v1/accounts/#{account.id}/integrations/shopify/auth",
              params: { shop_domain: shop_domain },
-             headers: agent.create_new_auth_token,
+             headers: admin.create_new_auth_token,
              as: :json
 
         expect(response).to have_http_status(:ok)
@@ -32,11 +34,33 @@ RSpec.describe 'Shopify Integration API', type: :request do
 
       it 'returns error when shop domain is missing' do
         post "/api/v1/accounts/#{account.id}/integrations/shopify/auth",
-             headers: agent.create_new_auth_token,
+             headers: admin.create_new_auth_token,
              as: :json
 
         expect(response).to have_http_status(:unprocessable_entity)
         expect(response.parsed_body['error']).to eq('Shop domain is required')
+      end
+    end
+
+    context 'when it is a client' do
+      it 'returns unauthorized' do
+        post "/api/v1/accounts/#{account.id}/integrations/shopify/auth",
+             params: { shop_domain: shop_domain },
+             headers: client.create_new_auth_token,
+             as: :json
+
+        expect(response).to have_http_status(:unauthorized)
+      end
+    end
+
+    context 'when it is an agent' do
+      it 'returns unauthorized' do
+        post "/api/v1/accounts/#{account.id}/integrations/shopify/auth",
+             params: { shop_domain: shop_domain },
+             headers: agent.create_new_auth_token,
+             as: :json
+
+        expect(response).to have_http_status(:unauthorized)
       end
     end
 
@@ -159,8 +183,6 @@ RSpec.describe 'Shopify Integration API', type: :request do
   end
 
   describe 'DELETE /api/v1/accounts/:account_id/integrations/shopify' do
-    let(:admin) { create(:user, account: account, role: :administrator) }
-
     before do
       create(:integrations_hook, :shopify, account: account)
     end

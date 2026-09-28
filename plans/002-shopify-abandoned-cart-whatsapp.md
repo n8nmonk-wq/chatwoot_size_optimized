@@ -60,14 +60,14 @@ One client wants a WhatsApp reminder sent to shoppers who abandon checkout, 24 h
   - Regenerate `db/schema.rb` so it includes migration `20260925100000_add_username_to_users` (`db:schema:load db:migrate` updates it). Commit only the schema diff for that migration.
   - **How to run Ruby specs on this Windows PC (the user approved Docker for tests):** Docker with `ruby:3.4.4` (with `libpq-dev` and `nodejs` apt packages), `pgvector/pgvector:pg16` and `redis:alpine`, repo mounted at `/app`, env `RAILS_ENV=test POSTGRES_HOST=postgres POSTGRES_PASSWORD=password REDIS_URL=redis://redis:6379/0`. Then `bundle install && bundle exec rails db:create db:schema:load` and `bundle exec rspec <paths>`. Never point it at production.
   - Don't fix the other 734 unrelated failing backend examples here. Only this plan's specs and the Shopify specs it touches must pass.
-- [ ] P2. **Prerequisite: restore the Shopify connect route (removed in `d915959`).**
+- [x] P2. **Prerequisite: restore the Shopify connect route (removed in `d915959`).**
   - Commit `d915959` removed `resource :shopify, controller: 'shopify', only: [:destroy] do collection { post :auth; get :orders } end` from the account `integrations` namespace in `config/routes.rb`, and the Settings → Integrations UI with it. `Api::V1::Accounts::Integrations::ShopifyController`, `Shopify::CallbacksController` and `/shopify/callback` still exist, but nothing can start a connection. The contact panel's `ShopifyOrdersList` (used in `ContactPanel.vue`) calls a missing route.
   - Restore exactly that route block (inside the same namespace as `hooks`, see `config/routes.rb` ~line 267). **Don't restore the Integrations settings UI.** Connecting is a one-time admin action done via the API; document it in `PROJECT.md` → "Shopify integration":
     `curl -X POST -H "api_access_token: <admin token from Profile settings>" -H "Content-Type: application/json" -d '{"shop_domain":"<store>.myshopify.com"}' https://<FRONTEND_URL host>/api/v1/accounts/1/integrations/shopify/auth` → open the returned `redirect_url` in a browser → approve in Shopify → it redirects back and the hook is created.
   - Also document enabling the feature (Super Admin has no feature checkboxes without Enterprise): `Account.find(1).enable_features!('shopify_integration')` in `rails console`.
   - Specs: add a request spec showing `POST .../integrations/shopify/auth` returns a `redirect_url` for an admin and is forbidden for the `client` role (check the controller's policy with `get_function_source check_authorization` / Pundit policy for hooks).
   - **Account model note (from the user's setup):** clients like Biotane are **users with role `client` inside account #1 MMO**, not separate accounts. Shopify hooks are per account and `allow_multiple_hooks: false`, so there is **one Shopify store for the whole MMO account**. That's fine for now (one Shopify client); sending is tied to `inbox_id` in hook settings. A second Shopify client needs a future plan (multiple hooks per account keyed by inbox).
-- [ ] 0. **Setup checklist (the user does this; the implementer only documents it in `PROJECT.md` → "Shopify integration").** Don't automate it.
+- [x] 0. **Setup checklist (the user does this; the implementer only documents it in `PROJECT.md` → "Shopify integration").** Don't automate it.
   - In the Shopify app's dashboard: set the redirect URL to `<FRONTEND_URL>/shopify/callback`, and request protected-customer-data access for name, email and phone.
   - In Super Admin → Settings → Shopify: set Client ID and Secret.
   - In Super Admin → Accounts → the client: enable `shopify_integration`.
@@ -112,6 +112,7 @@ One client wants a WhatsApp reminder sent to shoppers who abandon checkout, 24 h
 ## Implementation notes (implementer)
 - Step P: Gemfile `neighbor` and `oauth2` added, test suite runnable in Docker (`mmochat-test-runner`).
 - Step 1: Additive migration `20260928190000_create_shopify_abandoned_checkout_reminders.rb` created with compound unique index on `[:account_id, :checkout_id]`. Model `Shopify::AbandonedCheckoutReminder` added. Verified rollback and forward migration cleanly. Model spec passes (6 examples, 0 failures). Rubocop clean (3 files inspected, 0 offenses).
+- Step P2 & 0: Restored Shopify integration routes in `config/routes.rb` (under `namespace :integrations`). Added `auth?` to `HookPolicy` and enforced `before_action :check_authorization, only: [:auth, :destroy]` on `Api::V1::Accounts::Integrations::ShopifyController`. Added request specs for admin vs client vs agent vs unauthenticated authorization on `POST /auth`. Documented setup and connection API workflow in `PROJECT.md`. All 12 examples in `shopify_controller_spec` pass. Rubocop clean.
 
 ## Review (Claude)
 <verdict, follow-ups>
