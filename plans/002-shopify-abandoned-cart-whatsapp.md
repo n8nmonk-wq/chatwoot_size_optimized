@@ -18,7 +18,7 @@ One client wants a WhatsApp reminder sent to shoppers who abandon checkout, 24 h
 - **Scope:** one client only. The feature is switched on through that account's Shopify hook settings. No UI, no general per-inbox feature.
 - **Timing:** one reminder only, 24h after abandonment. It runs hourly, so it actually goes out between 24h and 25h.
 - **Cron, not webhook:** no new Shopify webhooks in this plan.
-- **Consent:** by default, only customers with marketing consent get a message (`require_marketing_consent: true`). The user can flip this setting.
+- **Consent (user decision, option B):** message every checkout that has a phone number. Keep the `require_marketing_consent` setting but default it to **false**; the user accepted the higher spam-report risk to the number. Opted-out, blocked and `dnd` contacts are still always skipped.
 - **Template:** configured in hook settings (name, language, parameter mapping). The client must have a Meta-approved **Marketing** template on the inbox's WhatsApp number.
 
 ## Affected code
@@ -73,7 +73,7 @@ One client wants a WhatsApp reminder sent to shoppers who abandon checkout, 24 h
     - abandonment was at least 24h ago,
     - no reminder row exists for the checkout.
   - Resolve the phone from `customer.phone`, then `shippingAddress.phone`, then `billingAddress.phone`, normalized with the existing `Whatsapp::PhoneNumberNormalizationService`. Skip and record `skipped` when there is no phone.
-  - If `require_marketing_consent`, skip unless the customer's email or SMS marketing consent is `SUBSCRIBED`.
+  - If `require_marketing_consent` is true (default false), skip unless the customer's email or SMS marketing consent is `SUBSCRIBED`.
   - Skip if an MMOChat contact with that phone is blocked or tagged `unsubscribed`, `opted_out` or `dnd` (the same rule as `process_audience`).
   - Insert the reminder row **before** sending (a unique-index conflict means skip). Then send the template via `Whatsapp::TemplateProcessorService` + `channel.send_template`, with params mapped from hook settings: first name, product titles (max 3, joined), total, `abandonedCheckoutUrl`.
   - Mark the row `sent` or `failed` (with the reason).
@@ -87,7 +87,7 @@ One client wants a WhatsApp reminder sent to shoppers who abandon checkout, 24 h
 - [ ] Full test run passes. Specs cover:
   - selection (24h boundary, completed checkouts excluded),
   - send-once (running the service twice sends one message),
-  - consent on and off,
+  - consent default off (sends without marketing consent) and consent on,
   - opted-out and blocked contacts skipped,
   - missing phone recorded as skipped,
   - token refresh, plus a legacy hook without a refresh token still working.
