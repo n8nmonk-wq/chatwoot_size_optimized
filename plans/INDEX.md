@@ -12,4 +12,4 @@ Status: TODO → IN PROGRESS → DONE → REVIEWED (then moved to done/). PARKED
 | 003 | [Shopify order utility WhatsApp](003-shopify-order-utility-whatsapp.md) | TODO | Webhooks: confirmed/shipped/delivered; needs 002 first |
 | 004 | [Shopify per-account credentials](004-shopify-per-account-credentials.md) | PARKED | Second Shopify client = new account with its own Client ID/Secret. Do not start until the user says so |
 | 005 | [CI: Node 24 actions + faster builds](done/005-ci-actions-node24.md) | REVIEWED | Node24 action majors, pin ubuntu-24.04, parallel build with latest gated on tests, skip docs-only pushes, .dockerignore |
-| 006 | [Shopify settings page](006-shopify-settings-page.md) | DONE | Admin-only Settings → Shopify: connect, reminder settings, test mode (test phones + delay). After 005, before 003 |
+| 006 | [Shopify settings page](006-shopify-settings-page.md) | IN PROGRESS | Review follow-ups F1–F3;  Admin-only Settings → Shopify: connect, reminder settings, test mode (test phones + delay). After 005, before 003 |

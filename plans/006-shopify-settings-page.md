@@ -1,6 +1,6 @@
 # 006 — Shopify settings page (connect, reminders, test mode)
 
-**Status:** DONE   <!-- TODO → IN PROGRESS → DONE → REVIEWED -->
+**Status:** IN PROGRESS   <!-- TODO → IN PROGRESS → DONE → REVIEWED -->
 **Author:** Claude · **Implementer:** Antigravity
 **Order:** after plan 005, before plan 003.
 
@@ -124,3 +124,14 @@ Evidence:
   - Skills: `ponytail` (full), `tdd`, `ux-writing`, `impeccable`, `review-delta`.
 
 ## Review (Claude)
+**Verdict (2026-09-29): not REVIEWED yet. Three small follow-ups first.** Status set back to IN PROGRESS.
+
+Checked: diff `5f43cd1..15bab46` against the steps. Claude's own runs: `bundle exec rspec spec/controllers/api/v1/accounts/integrations/shopify_controller_spec.rb spec/services/shopify spec/jobs/shopify spec/controllers/shopify spec/models/shopify spec/helpers/shopify spec/configs/schedule_spec.rb spec/policies` → **110 examples, 0 failures**. `TZ=UTC npx vitest run` → **379 files, 4167 passed** (without `TZ=UTC`, 18 date/timezone specs fail on this IST machine; they're pre-existing, unrelated to this plan, and CI runs in UTC). ESLint clean on the changed frontend files.
+
+Good: `update` merges only `abandoned_cart` with whitelisted keys (token keys survive, spec'd); `show` returns no secrets; admin-only on route, sidebar, endpoints and policy; the window uses `delay_hours` in both places; test mode returns before any `record_reminder` for non-test checkouts, and a test phone already recorded isn't re-sent.
+
+### Follow-ups (implementer)
+- [ ] **F1. Normalize `store_domain` on save.** The user's own input was `https://biotane.in/`. Saved as typed, `valid_checkout_host?` builds `https://https://biotane.in/`, the host doesn't match, and **every** reminder is recorded `failed / checkout_url_host_mismatch`. In `update`: strip the scheme, path and trailing slash, lowercase, and return 422 if what's left isn't a hostname. Spec: `https://Biotane.in/` → saved `biotane.in`; `not a domain` → 422.
+- [ ] **F2. Revert the out-of-scope Sidebar edits.** Step 4 only adds the Shopify item. The commit also removed `isOnChatwootCloud` from `useAccount()`, but the template still uses it (`Sidebar.vue` `SidebarChangelogCard` / `SidebarChangelogButton` `v-if`), so it's now undefined in render (Vue warning; hidden by accident, not by design). Restore that destructuring. Leave the other removals only if each is truly unused (grep the template), and say so in notes; otherwise restore them too.
+- [ ] **F3. Record the plan's tool calls.** The notes list editor tools, not the ones this plan requires. For each of code-review-graph (`build_or_update_graph_tool`, `get_impact_radius_tool`, `query_graph_tool` …), Token Savior (`switch_project`, `get_function_source` …) and `sequential-thinking` (**required for step 2**), write used / not used / unavailable. Don't claim what wasn't run.
+- Note, no change needed: test phones without `+` default to India (`'IN'`). Fine while every client is Indian; revisit with plan 004.
