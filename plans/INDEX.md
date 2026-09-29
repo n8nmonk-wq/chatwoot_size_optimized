@@ -13,3 +13,4 @@ Status: TODO → IN PROGRESS → DONE → REVIEWED (then moved to done/). PARKED
 | 004 | [Shopify per-account credentials](004-shopify-per-account-credentials.md) | PARKED | Second Shopify client = new account with its own Client ID/Secret. Do not start until the user says so |
 | 005 | [CI: Node 24 actions + faster builds](done/005-ci-actions-node24.md) | REVIEWED | Node24 action majors, pin ubuntu-24.04, parallel build with latest gated on tests, skip docs-only pushes, .dockerignore |
 | 006 | [Shopify settings page](done/006-shopify-settings-page.md) | REVIEWED | Admin-only Settings → Shopify: connect, reminder settings, test mode (test phones + delay) |
+| 007 | [Shopify settings page load fix](007-shopify-settings-page-load-fix.md) | TODO | Hotfix: page reads data.abandoned_cart instead of data.settings.abandoned_cart; error message key |
