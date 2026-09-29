@@ -15,3 +15,12 @@ vendor/bundle
 .DS_Store
 *.swp
 *~
+
+# Test, planning, CI, and tooling files
+spec/
+plans/
+.github/
+.claude/
+
+# Top-level documentation
+*.md
