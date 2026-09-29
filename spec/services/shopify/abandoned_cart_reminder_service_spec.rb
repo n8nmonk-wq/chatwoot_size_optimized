@@ -52,8 +52,8 @@ RSpec.describe Shopify::AbandonedCartReminderService do
         'emailMarketingConsent' => { 'marketingState' => 'NOT_SUBSCRIBED' },
         'smsMarketingConsent' => { 'marketingState' => 'NOT_SUBSCRIBED' }
       },
-      'shippingAddress' => { 'phone' => nil },
-      'billingAddress' => { 'phone' => nil },
+      'shippingAddress' => { 'firstName' => nil, 'phone' => nil, 'countryCodeV2' => 'IN' },
+      'billingAddress' => { 'firstName' => nil, 'phone' => nil, 'countryCodeV2' => 'IN' },
       'lineItems' => {
         'nodes' => [
           { 'title' => 'Biotane Herbal Shampoo' },
@@ -67,6 +67,7 @@ RSpec.describe Shopify::AbandonedCartReminderService do
     {
       'data' => {
         'abandonedCheckouts' => {
+          'pageInfo' => { 'hasNextPage' => false, 'endCursor' => nil },
           'nodes' => [checkout_node]
         }
       }
@@ -107,6 +108,71 @@ RSpec.describe Shopify::AbandonedCartReminderService do
       expect(reminder.status).to eq('sent')
       expect(reminder.sent_at).to be_present
       expect(reminder.reason).to be_nil
+    end
+
+    describe 'F1 pagination' do
+      it 'processes checkouts across multiple pages until hasNextPage is false' do
+        second_node = checkout_node.deep_dup
+        second_node['id'] = 'gid://shopify/AbandonedCheckout/987654322'
+        second_node['customer']['phone'] = '+919876543299'
+
+        page1_response = instance_double(
+          ShopifyAPI::Clients::HttpResponse,
+          body: {
+            'data' => {
+              'abandonedCheckouts' => {
+                'pageInfo' => { 'hasNextPage' => true, 'endCursor' => 'cursor_page_1' },
+                'nodes' => [checkout_node]
+              }
+            }
+          }
+        )
+        page2_response = instance_double(
+          ShopifyAPI::Clients::HttpResponse,
+          body: {
+            'data' => {
+              'abandonedCheckouts' => {
+                'pageInfo' => { 'hasNextPage' => false, 'endCursor' => nil },
+                'nodes' => [second_node]
+              }
+            }
+          }
+        )
+
+        expect(graphql_client).to receive(:query).with(
+          query: Shopify::AbandonedCartReminderService::GRAPHQL_QUERY,
+          variables: hash_not_including(:after)
+        ).and_return(page1_response)
+
+        expect(graphql_client).to receive(:query).with(
+          query: Shopify::AbandonedCartReminderService::GRAPHQL_QUERY,
+          variables: hash_including(after: 'cursor_page_1')
+        ).and_return(page2_response)
+
+        expect { described_class.new(hook).perform }.to change {
+          Shopify::AbandonedCheckoutReminder.where(account_id: account.id, status: 'sent').count
+        }.by(2)
+      end
+    end
+
+    describe 'F2 address phone without country code' do
+      it 'formats address phone using countryCodeV2 when missing plus' do
+        checkout_node['customer']['phone'] = nil
+        checkout_node['shippingAddress']['phone'] = '9812143700'
+        checkout_node['shippingAddress']['countryCodeV2'] = 'IN'
+
+        described_class.new(hook).perform
+        expect(a_request(:post, meta_messages_url_pattern).with { |req| JSON.parse(req.body)['to'] == '919812143700' }).to have_been_made.once
+      end
+    end
+
+    describe 'F3 fail loudly on Shopify errors' do
+      it 'raises error when GraphQL returns error response' do
+        error_response = instance_double(ShopifyAPI::Clients::HttpResponse, body: { 'errors' => [{ 'message' => 'Access denied' }] })
+        allow(graphql_client).to receive(:query).and_return(error_response)
+
+        expect { described_class.new(hook).perform }.to raise_error(/Shopify GraphQL error/)
+      end
     end
 
     describe 'selection criteria' do
@@ -263,9 +329,11 @@ RSpec.describe Shopify::AbandonedCartReminderService do
       end
     end
 
-    describe 'first name fallback and product titles formatting' do
-      it 'uses "there" when customer first name is missing' do
+    describe 'F4 product text and F5 name fallback formatting' do
+      it 'uses "there" when customer and address first names are missing' do
         checkout_node['customer']['firstName'] = nil
+        checkout_node['shippingAddress']['firstName'] = nil
+        checkout_node['billingAddress']['firstName'] = nil
 
         described_class.new(hook).perform
         expect(
@@ -278,7 +346,36 @@ RSpec.describe Shopify::AbandonedCartReminderService do
         ).to have_been_made.once
       end
 
-      it 'limits product titles to max 3 items' do
+      it 'falls back to shippingAddress firstName when customer firstName is missing' do
+        checkout_node['customer']['firstName'] = nil
+        checkout_node['shippingAddress']['firstName'] = 'Priya'
+
+        described_class.new(hook).perform
+        expect(
+          a_request(:post, meta_messages_url_pattern).with do |req|
+            body = JSON.parse(req.body)
+            body['template']['components'].any? do |c|
+              c['type'] == 'body' && c['parameters'].any? { |p| p['text'] == 'Priya' }
+            end
+          end
+        ).to have_been_made.once
+      end
+
+      it 'formats single product as just the title' do
+        checkout_node['lineItems']['nodes'] = [{ 'title' => 'Single Product' }]
+
+        described_class.new(hook).perform
+        expect(
+          a_request(:post, meta_messages_url_pattern).with do |req|
+            body = JSON.parse(req.body)
+            body['template']['components'].any? do |c|
+              c['type'] == 'body' && c['parameters'].any? { |p| p['text'] == 'Single Product' }
+            end
+          end
+        ).to have_been_made.once
+      end
+
+      it 'formats multiple products as first product and N more items' do
         checkout_node['lineItems']['nodes'] = [
           { 'title' => 'Item 1' },
           { 'title' => 'Item 2' },
@@ -291,7 +388,7 @@ RSpec.describe Shopify::AbandonedCartReminderService do
           a_request(:post, meta_messages_url_pattern).with do |req|
             body = JSON.parse(req.body)
             body['template']['components'].any? do |c|
-              c['type'] == 'body' && c['parameters'].any? { |p| p['text'] == 'Item 1, Item 2, Item 3' }
+              c['type'] == 'body' && c['parameters'].any? { |p| p['text'] == 'Item 1 and 3 more items' }
             end
           end
         ).to have_been_made.once

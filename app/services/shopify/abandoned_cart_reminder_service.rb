@@ -6,12 +6,14 @@ class Shopify::AbandonedCartReminderService
   UNSUBSCRIBED_TAGS = %w[unsubscribed opted_out dnd].freeze
 
   GRAPHQL_QUERY = <<~GRAPHQL
-    query GetAbandonedCheckouts($query: String) {
-      abandonedCheckouts(first: 50, query: $query) {
+    query GetAbandonedCheckouts($query: String, $after: String) {
+      abandonedCheckouts(first: 50, query: $query, after: $after) {
+        pageInfo { hasNextPage endCursor }
         nodes {
           id createdAt completedAt abandonedCheckoutUrl totalPriceSet { shopMoney { amount currencyCode } }
           customer { firstName phone emailMarketingConsent { marketingState } smsMarketingConsent { marketingState } }
-          shippingAddress { phone } billingAddress { phone } lineItems(first: 5) { nodes { title } }
+          shippingAddress { firstName phone countryCodeV2 } billingAddress { firstName phone countryCodeV2 }
+          lineItems(first: 50) { nodes { title } }
         }
       }
     }
@@ -36,11 +38,7 @@ class Shopify::AbandonedCartReminderService
   private
 
   def valid_hook?
-    return false if @hook.blank? || !@hook.enabled?
-    return false unless abandoned_cart_settings['enabled'] == true
-    return false if inbox.blank? || channel.blank?
-
-    true
+    @hook.present? && @hook.enabled? && abandoned_cart_settings['enabled'] == true && inbox.present? && channel.present?
   end
 
   def abandoned_cart_settings
@@ -67,12 +65,8 @@ class Shopify::AbandonedCartReminderService
     return if client_id.blank? || client_secret.blank?
 
     ShopifyAPI::Context.setup(
-      api_key: client_id,
-      api_secret_key: client_secret,
-      api_version: API_VERSION,
-      scope: REQUIRED_SCOPES.join(','),
-      is_embedded: true,
-      is_private: false
+      api_key: client_id, api_secret_key: client_secret, api_version: API_VERSION,
+      scope: REQUIRED_SCOPES.join(','), is_embedded: true, is_private: false
     )
   end
 
@@ -85,30 +79,36 @@ class Shopify::AbandonedCartReminderService
   end
 
   def fetch_abandoned_checkouts
-    since_iso = 72.hours.ago.iso8601
-    response = graphql_client.query(query: GRAPHQL_QUERY, variables: { query: "created_at:>=#{since_iso}" })
-    return [] if response.body.blank? || response.body['errors'].present?
+    query_filter = "created_at:>=#{72.hours.ago.iso8601} AND created_at:<=#{24.hours.ago.iso8601}"
+    cursor = nil
+    checkouts = []
 
-    response.body.dig('data', 'abandonedCheckouts', 'nodes') || []
-  rescue StandardError => e
-    Rails.logger.error("[Shopify::AbandonedCartReminderService] GraphQL query error: #{e.message}")
-    []
+    loop do
+      data = query_checkout_page(query_filter, cursor)
+      checkouts.concat(data['nodes'] || [])
+      break unless data.dig('pageInfo', 'hasNextPage')
+
+      cursor = data.dig('pageInfo', 'endCursor')
+      break if cursor.blank?
+    end
+
+    checkouts
   end
 
-  def parse_time(time_string)
-    Time.zone.parse(time_string)
-  rescue ArgumentError, TypeError
-    nil
+  def query_checkout_page(query_filter, cursor)
+    response = graphql_client.query(query: GRAPHQL_QUERY, variables: { query: query_filter, after: cursor }.compact)
+    raise "Shopify GraphQL error: #{response.body&.dig('errors') || 'empty response'}" if response.body.blank? || response.body['errors'].present?
+
+    response.body.dig('data', 'abandonedCheckouts') || {}
   end
 
   def eligible_checkout?(checkout, checkout_id)
     return false if checkout_id.blank? || checkout['completedAt'].present?
 
-    created_at = parse_time(checkout['createdAt'])
+    created_at = Time.zone.parse(checkout['createdAt'])
     return false if created_at.blank? || created_at > 24.hours.ago || created_at < 72.hours.ago
-    return false if @hook.account.shopify_abandoned_checkout_reminders.exists?(checkout_id: checkout_id)
 
-    true
+    !@hook.account.shopify_abandoned_checkout_reminders.exists?(checkout_id: checkout_id)
   end
 
   def process_checkout(checkout)
@@ -119,19 +119,16 @@ class Shopify::AbandonedCartReminderService
     return if phone.blank?
 
     button_suffix = extract_button_suffix(checkout['abandonedCheckoutUrl'])
-    if button_suffix.nil?
-      record_reminder(checkout_id, 'failed', 'checkout_url_host_mismatch')
-      return
-    end
+    return record_reminder(checkout_id, 'failed', 'checkout_url_host_mismatch') if button_suffix.nil?
 
     send_reminder(checkout, phone, button_suffix)
   end
 
   def resolve_and_validate_phone(checkout, checkout_id)
-    raw_phone = extract_raw_phone(checkout)
+    raw_phone, country_code = extract_raw_phone_and_country(checkout)
     return record_reminder(checkout_id, 'skipped', 'missing_phone') if raw_phone.blank?
 
-    phone = normalize_phone(raw_phone)
+    phone = normalize_phone(raw_phone, country_code)
     return record_reminder(checkout_id, 'skipped', 'missing_phone') if phone.blank?
     return record_reminder(checkout_id, 'skipped', 'consent_required') if require_marketing_consent? && !customer_consented?(checkout)
     return record_reminder(checkout_id, 'skipped', 'contact_opted_out') if contact_opted_out_or_blocked?(phone)
@@ -139,19 +136,32 @@ class Shopify::AbandonedCartReminderService
     phone
   end
 
-  def extract_raw_phone(checkout)
-    checkout.dig('customer', 'phone').presence ||
-      checkout.dig('shippingAddress', 'phone').presence ||
-      checkout.dig('billingAddress', 'phone').presence
+  def extract_raw_phone_and_country(checkout)
+    return [checkout.dig('customer', 'phone'), nil] if checkout.dig('customer', 'phone').present?
+
+    shipping = checkout['shippingAddress']
+    return [shipping['phone'], shipping['countryCodeV2']] if shipping&.dig('phone').present?
+
+    billing = checkout['billingAddress']
+    return [billing['phone'], billing['countryCodeV2']] if billing&.dig('phone').present?
+
+    [nil, nil]
   end
 
-  def normalize_phone(raw_phone)
-    clean_digits = raw_phone.gsub(/\D/, '')
-    return nil if clean_digits.blank?
+  def normalize_phone(raw_phone, country_code)
+    clean = parsed_e164(raw_phone, country_code) || raw_phone.gsub(/\D/, '')
+    return nil if clean.blank?
 
     normalizer = Whatsapp::PhoneNumberNormalizationService.new(inbox)
-    normalized = normalizer.normalize_and_find_contact_by_provider(clean_digits, :cloud)
-    normalized.presence || clean_digits
+    normalizer.normalize_and_find_contact_by_provider(clean, :cloud).presence || clean
+  end
+
+  def parsed_e164(raw_phone, country_code)
+    if raw_phone.start_with?('+')
+      TelephoneNumber.parse(raw_phone).e164_number&.delete_prefix('+')
+    elsif country_code.present?
+      TelephoneNumber.parse(raw_phone, country_code).e164_number&.delete_prefix('+')
+    end
   end
 
   def customer_consented?(checkout)
@@ -165,8 +175,7 @@ class Shopify::AbandonedCartReminderService
     candidates = ([phone_digits, "+#{phone_digits}"] +
       Whatsapp::PhoneNumberNormalizationService.new(inbox).phone_number_candidates(phone_digits).flat_map { |c| [c, "+#{c}"] }).uniq
 
-    contacts = @hook.account.contacts.where(phone_number: candidates)
-    contacts.any? { |c| c.blocked? || c.label_list.intersect?(UNSUBSCRIBED_TAGS) }
+    @hook.account.contacts.where(phone_number: candidates).any? { |c| c.blocked? || c.label_list.intersect?(UNSUBSCRIBED_TAGS) }
   end
 
   def parse_url(url_string)
@@ -197,24 +206,18 @@ class Shopify::AbandonedCartReminderService
     return if reminder.blank?
 
     builder = Shopify::AbandonedCartPayloadBuilder.new(hook: @hook, checkout: checkout, channel: channel, button_suffix: button_suffix)
-    template_payload = builder.build
-    send_response = channel.send_template(phone, template_payload, nil)
+    send_response = channel.send_template(phone, builder.build, nil)
 
-    status = send_response.present? ? 'sent' : 'failed'
-    reason = send_response.present? ? nil : 'send_template_failed'
-    reminder.update!(status: status, sent_at: (Time.current if status == 'sent'), reason: reason)
+    sent = send_response.present?
+    reminder.update!(status: sent ? 'sent' : 'failed', sent_at: (Time.current if sent), reason: (sent ? nil : 'send_template_failed'))
   rescue StandardError => e
     Rails.logger.error("[Shopify::AbandonedCartReminderService] Error sending reminder for #{checkout_id}: #{e.message}")
     reminder&.update(status: 'failed', reason: e.message.truncate(255))
   end
 
   def record_reminder(checkout_id, status, reason = nil)
-    @hook.account.shopify_abandoned_checkout_reminders.create!(
-      checkout_id: checkout_id,
-      status: status,
-      reason: reason
-    )
-  rescue ActiveRecord::RecordNotUnique, ActiveRecord::RecordInvalid
+    @hook.account.shopify_abandoned_checkout_reminders.create!(checkout_id: checkout_id, status: status, reason: reason)
+  rescue ActiveRecord::RecordNotUnique
     nil
   end
 end

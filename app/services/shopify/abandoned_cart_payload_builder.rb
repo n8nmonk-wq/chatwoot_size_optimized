@@ -46,13 +46,21 @@ class Shopify::AbandonedCartPayloadBuilder
   end
 
   def first_name
-    @checkout.dig('customer', 'firstName').presence || 'there'
+    @checkout.dig('customer', 'firstName').presence ||
+      @checkout.dig('shippingAddress', 'firstName').presence ||
+      @checkout.dig('billingAddress', 'firstName').presence ||
+      'there'
   end
 
   def product_titles
     nodes = @checkout.dig('lineItems', 'nodes') || []
     titles = nodes.filter_map { |item| item['title'].presence }
-    titles.first(3).join(', ').presence || 'your items'
+    return 'your items' if titles.empty?
+    return titles.first if titles.length == 1
+
+    remaining = titles.length - 1
+    suffix = remaining == 1 ? '1 more item' : "#{remaining} more items"
+    "#{titles.first} and #{suffix}"
   end
 
   def total_formatted

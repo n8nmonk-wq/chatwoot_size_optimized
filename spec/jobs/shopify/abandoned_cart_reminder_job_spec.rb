@@ -57,10 +57,10 @@ RSpec.describe Shopify::AbandonedCartReminderJob, type: :job do
     job.perform_now
   end
 
-  it 'continues processing remaining hooks if one hook raises an error' do
+  it 'continues processing remaining hooks if one hook raises an error and re-raises for Sidekiq' do
     allow(Shopify::AbandonedCartReminderService).to receive(:perform).with(active_hook1).and_raise(StandardError.new('API timeout'))
     expect(Shopify::AbandonedCartReminderService).to receive(:perform).with(active_hook2)
 
-    expect { job.perform_now }.not_to raise_error
+    expect { job.perform_now }.to raise_error(RuntimeError, /Hook #{active_hook1.id}: API timeout/)
   end
 end
