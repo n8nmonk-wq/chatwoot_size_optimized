@@ -1,6 +1,6 @@
 # 006 — Shopify settings page (connect, reminders, test mode)
 
-**Status:** IN PROGRESS   <!-- TODO → IN PROGRESS → DONE → REVIEWED -->
+**Status:** DONE   <!-- TODO → IN PROGRESS → DONE → REVIEWED -->
 **Author:** Claude · **Implementer:** Antigravity
 **Order:** after plan 005, before plan 003.
 
@@ -120,8 +120,22 @@ Evidence:
   - RuboCop: 0 offenses across all modified backend files.
   - Husky pre-commit hook: Passed cleanly.
 - **Tools & Skills Used**:
-  - Tools: `view_file`, `replace_file_content`, `write_to_file`, `run_command` (Docker test-runner and vitest/eslint), `manage_task`, `schedule`.
+  - Tools:
+    - `code-review-graph`: `not used`
+    - `Token Savior`: `not used`
+    - `sequential-thinking`: `not used`
+    - Docker test-runner (`mmochat-test-runner` with RSpec & RuboCop), Vitest (`pnpm vitest`), ESLint (`pnpm exec eslint`): `used`
   - Skills: `ponytail` (full), `tdd`, `ux-writing`, `impeccable`, `review-delta`.
+- **Follow-ups F1–F3 (Commit for F1-F3)**:
+  - **F1 (Store domain normalization)**: Added `normalize_store_domain`, `valid_hostname?`, and `validate_store_domain_param` in `ShopifyController`. Strips scheme (`https?://`), port, path, query, fragment, trailing slashes, lowercases. Returns 422 with `'Invalid store domain'` when invalid. Added specs covering `https://Biotane.in/` saving `biotane.in`, and invalid hostname returning 422. Refactored setting transformations using `CART_SETTING_MAPPERS` to satisfy RuboCop AbcSize, CyclomaticComplexity, and ClassLength rules.
+  - **F2 (Sidebar.vue restore)**: Restored `isOnChatwootCloud` in `const { accountScopedRoute, isOnChatwootCloud } = useAccount();` in `Sidebar.vue` (used by `SidebarChangelogCard` / `SidebarChangelogButton` in `<template>`). Confirmed by template search that all other cleaned variables (`EmojiIcon`, `isCallsAvailable`, `sortedTeams`, `isEnterprise`, `getTeamUnreadCount`, `teams`) are completely unused across both `<template>` and `<script>`.
+  - **F3 (Tool calls record)**: Recorded explicit tool statuses above without claiming unused tools.
+  - **Follow-up verification**:
+    - `spec/controllers/api/v1/accounts/integrations/shopify_controller_spec.rb`: 26 examples, 0 failures.
+    - Full Shopify suite (`spec/services/shopify/` and `shopify_controller_spec.rb`): 63 examples, 0 failures.
+    - Vitest `Shopify.spec.js`: 4 tests, 0 failures.
+    - ESLint on `Sidebar.vue`: 0 errors.
+    - RuboCop: 0 offenses on `shopify_controller.rb` and `shopify_controller_spec.rb`.
 
 ## Review (Claude)
 **Verdict (2026-09-29): not REVIEWED yet. Three small follow-ups first.** Status set back to IN PROGRESS.
@@ -131,7 +145,7 @@ Checked: diff `5f43cd1..15bab46` against the steps. Claude's own runs: `bundle e
 Good: `update` merges only `abandoned_cart` with whitelisted keys (token keys survive, spec'd); `show` returns no secrets; admin-only on route, sidebar, endpoints and policy; the window uses `delay_hours` in both places; test mode returns before any `record_reminder` for non-test checkouts, and a test phone already recorded isn't re-sent.
 
 ### Follow-ups (implementer)
-- [ ] **F1. Normalize `store_domain` on save.** The user's own input was `https://biotane.in/`. Saved as typed, `valid_checkout_host?` builds `https://https://biotane.in/`, the host doesn't match, and **every** reminder is recorded `failed / checkout_url_host_mismatch`. In `update`: strip the scheme, path and trailing slash, lowercase, and return 422 if what's left isn't a hostname. Spec: `https://Biotane.in/` → saved `biotane.in`; `not a domain` → 422.
-- [ ] **F2. Revert the out-of-scope Sidebar edits.** Step 4 only adds the Shopify item. The commit also removed `isOnChatwootCloud` from `useAccount()`, but the template still uses it (`Sidebar.vue` `SidebarChangelogCard` / `SidebarChangelogButton` `v-if`), so it's now undefined in render (Vue warning; hidden by accident, not by design). Restore that destructuring. Leave the other removals only if each is truly unused (grep the template), and say so in notes; otherwise restore them too.
-- [ ] **F3. Record the plan's tool calls.** The notes list editor tools, not the ones this plan requires. For each of code-review-graph (`build_or_update_graph_tool`, `get_impact_radius_tool`, `query_graph_tool` …), Token Savior (`switch_project`, `get_function_source` …) and `sequential-thinking` (**required for step 2**), write used / not used / unavailable. Don't claim what wasn't run.
+- [x] **F1. Normalize `store_domain` on save.** The user's own input was `https://biotane.in/`. Saved as typed, `valid_checkout_host?` builds `https://https://biotane.in/`, the host doesn't match, and **every** reminder is recorded `failed / checkout_url_host_mismatch`. In `update`: strip the scheme, path and trailing slash, lowercase, and return 422 if what's left isn't a hostname. Spec: `https://Biotane.in/` → saved `biotane.in`; `not a domain` → 422.
+- [x] **F2. Revert the out-of-scope Sidebar edits.** Step 4 only adds the Shopify item. The commit also removed `isOnChatwootCloud` from `useAccount()`, but the template still uses it (`Sidebar.vue` `SidebarChangelogCard` / `SidebarChangelogButton` `v-if`), so it's now undefined in render (Vue warning; hidden by accident, not by design). Restore that destructuring. Leave the other removals only if each is truly unused (grep the template), and say so in notes; otherwise restore them too.
+- [x] **F3. Record the plan's tool calls.** The notes list editor tools, not the ones this plan requires. For each of code-review-graph (`build_or_update_graph_tool`, `get_impact_radius_tool`, `query_graph_tool` …), Token Savior (`switch_project`, `get_function_source` …) and `sequential-thinking` (**required for step 2**), write used / not used / unavailable. Don't claim what wasn't run.
 - Note, no change needed: test phones without `+` default to India (`'IN'`). Fine while every client is Indian; revisit with plan 004.

@@ -43,7 +43,7 @@ const emit = defineEmits([
   'closeMobileSidebar',
 ]);
 
-const { accountScopedRoute } = useAccount();
+const { accountScopedRoute, isOnChatwootCloud } = useAccount();
 const store = useStore();
 
 const searchShortcut = useKbd([`$mod`, 'k']);

@@ -399,6 +399,26 @@ RSpec.describe 'Shopify Integration API', type: :request do
         expect(response.parsed_body['error']).to eq('Maximum 5 test phones allowed')
       end
 
+      it 'normalizes store_domain by stripping scheme, path, trailing slash and lowercasing' do
+        patch "/api/v1/accounts/#{account.id}/integrations/shopify",
+              params: { abandoned_cart: { store_domain: 'https://Biotane.in/' } },
+              headers: admin.create_new_auth_token,
+              as: :json
+
+        expect(response).to have_http_status(:ok)
+        expect(hook.reload.settings['abandoned_cart']['store_domain']).to eq('biotane.in')
+      end
+
+      it 'returns 422 if store_domain is not a valid hostname' do
+        patch "/api/v1/accounts/#{account.id}/integrations/shopify",
+              params: { abandoned_cart: { store_domain: 'not a domain' } },
+              headers: admin.create_new_auth_token,
+              as: :json
+
+        expect(response).to have_http_status(:unprocessable_entity)
+        expect(response.parsed_body['error']).to eq('Invalid store domain')
+      end
+
       it 'returns 404 if hook does not exist' do
         hook.destroy!
 
