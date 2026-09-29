@@ -88,6 +88,7 @@ One client wants a WhatsApp reminder sent to shoppers who abandon checkout, 24 h
   - If `require_marketing_consent` is true (default false), skip unless the customer's email or SMS marketing consent is `SUBSCRIBED`.
   - Skip if an MMOChat contact with that phone is blocked or tagged `unsubscribed`, `opted_out` or `dnd` (the same rule as `process_audience`).
   - Insert the reminder row **before** sending (a unique-index conflict means skip). Then send the template via `Whatsapp::TemplateProcessorService` + `channel.send_template`, with params mapped from hook settings: first name, product titles (max 3, joined), total, `abandonedCheckoutUrl`.
+    - **Template shape (chat, 2026-09-29): the user submitted `abandoned_cart_reminder` to Meta (Marketing).** Body `{{1}}` = first name (fallback "there"), `{{2}}` = product titles, `{{3}}` = total with currency (e.g. "₹1,299.00"). The checkout link goes in a **URL button with a dynamic suffix**, not in the body: the button base URL is `https://<store domain>/`, and the button parameter is `abandonedCheckoutUrl` with that `https://<host>/` prefix stripped (path + query). If the URL's host doesn't match the configured base, record `failed` with a reason. Don't send a broken link. Check how `Whatsapp::TemplateProcessorService` builds button parameters (`get_function_source`) and reuse it.
   - Mark the row `sent` or `failed` (with the reason).
   - Don't create conversations manually. Rely on whatever `send_template` does today, and note what that is in Implementation notes.
 - [ ] 5. **Job and schedule.**
