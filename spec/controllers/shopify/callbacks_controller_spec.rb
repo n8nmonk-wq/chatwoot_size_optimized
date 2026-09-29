@@ -71,6 +71,50 @@ RSpec.describe Shopify::CallbacksController, type: :request do
         )
         expect(response).to redirect_to(shopify_redirect_uri)
       end
+
+      it 'requests expiring offline access token' do
+        expect(auth_code_strategy).to receive(:get_token).with(code, redirect_uri: '/shopify/callback', expiring: 1).and_return(token_response)
+
+        get shopify_callback_path, params: { code: code, state: state, shop: shop }
+      end
+
+      context 'when receiving expiring offline tokens' do
+        let(:response_body) do
+          {
+            'access_token' => access_token,
+            'scope' => 'read_products,write_products',
+            'expires_in' => 3600,
+            'refresh_token' => 'shprt_sample_refresh_token'
+          }
+        end
+
+        it 'stores refresh_token and expires_at in settings' do
+          freeze_time do
+            get shopify_callback_path, params: { code: code, state: state, shop: shop }
+
+            hook = Integrations::Hook.last
+            expect(hook.access_token).to eq(access_token)
+            expect(hook.settings['refresh_token']).to eq('shprt_sample_refresh_token')
+            expect(hook.settings['expires_at']).to eq(3600.seconds.from_now.iso8601)
+          end
+        end
+      end
+
+      context 'when reconnecting an existing shop hook' do
+        let!(:existing_hook) do
+          create(:integrations_hook, :shopify, account: account, reference_id: shop, access_token: 'old_token')
+        end
+
+        it 'updates the existing hook instead of creating a duplicate' do
+          expect do
+            get shopify_callback_path, params: { code: code, state: state, shop: shop }
+          end.not_to change(Integrations::Hook, :count)
+
+          existing_hook.reload
+          expect(existing_hook.access_token).to eq(access_token)
+          expect(response).to redirect_to(shopify_redirect_uri)
+        end
+      end
     end
 
     context 'when the code is missing' do

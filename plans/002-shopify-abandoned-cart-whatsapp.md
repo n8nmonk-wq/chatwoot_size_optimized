@@ -73,7 +73,7 @@ One client wants a WhatsApp reminder sent to shoppers who abandon checkout, 24 h
   - In Super Admin → Accounts → the client: enable `shopify_integration`.
   - Connect via the API call documented in step P2 (there is no Integrations UI).
 - [x] 1. **Additive migration.** Add a table `shopify_abandoned_checkout_reminders` with `account_id`, `checkout_id` (Shopify GID, string), `status` (sent / skipped / failed), `reason`, `sent_at` and timestamps, and a **unique index on `[account_id, checkout_id]`**. This is the send-once guarantee.
-- [ ] 2. **Expiring tokens with backward compatibility.**
+- [x] 2. **Expiring tokens with backward compatibility.**
   - The callback asks for expiring tokens (`expiring=1` on the code exchange). It stores `access_token` in the hook as today, plus `refresh_token` and `expires_at` in `hook.settings`.
   - Add a single accessor (on `Integrations::Hook` or a tiny `Shopify::AccessToken` object) that returns a valid token, refreshing through `/admin/oauth/access_token` with `grant_type=refresh_token` when `expires_at` is less than 5 minutes away, and saves the new pair.
   - A hook with no `refresh_token` returns its stored token unchanged.
@@ -113,6 +113,7 @@ One client wants a WhatsApp reminder sent to shoppers who abandon checkout, 24 h
 - Step P: Gemfile `neighbor` and `oauth2` added, test suite runnable in Docker (`mmochat-test-runner`).
 - Step 1: Additive migration `20260928190000_create_shopify_abandoned_checkout_reminders.rb` created with compound unique index on `[:account_id, :checkout_id]`. Model `Shopify::AbandonedCheckoutReminder` added. Verified rollback and forward migration cleanly. Model spec passes (6 examples, 0 failures). Rubocop clean (3 files inspected, 0 offenses).
 - Step P2 & 0: Restored Shopify integration routes in `config/routes.rb` (under `namespace :integrations`). Added `auth?` to `HookPolicy` and enforced `before_action :check_authorization, only: [:auth, :destroy]` on `Api::V1::Accounts::Integrations::ShopifyController`. Added request specs for admin vs client vs agent vs unauthenticated authorization on `POST /auth`. Documented setup and connection API workflow in `PROJECT.md`. All 12 examples in `shopify_controller_spec` pass. Rubocop clean.
+- Step 2: Added `Shopify::AccessToken` service and `Integrations::Hook#shopify_access_token` accessor to support expiring offline access tokens with automatic renewal within 5 minutes of expiry while preserving backward compatibility for legacy non-expiring tokens. Updated `Shopify::CallbacksController` to request `expiring=1` and persist `refresh_token` and `expires_at` in `hook.settings`. Pointed `ShopifyController#shopify_session` to `shopify_access_token` and rescued `CustomExceptions::Shopify::TokenRefreshError` in `orders`. RSpec Shopify specs: 30 examples, 0 failures. Vitest JS specs: 378 test files, 4163 passed, 0 failures. RuboCop clean: 7 files inspected, 0 offenses.
 
 ## Review (Claude)
 <verdict, follow-ups>

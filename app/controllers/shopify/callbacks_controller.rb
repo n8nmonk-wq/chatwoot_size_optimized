@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 class Shopify::CallbacksController < ApplicationController
   include Shopify::IntegrationHelper
 
@@ -6,7 +8,8 @@ class Shopify::CallbacksController < ApplicationController
 
     @response = oauth_client.auth_code.get_token(
       params[:code],
-      redirect_uri: '/shopify/callback'
+      redirect_uri: '/shopify/callback',
+      expiring: 1
     )
 
     handle_response
@@ -23,17 +26,31 @@ class Shopify::CallbacksController < ApplicationController
   end
 
   def handle_response
-    account.hooks.create!(
-      app_id: 'shopify',
+    hook = account.hooks.find_or_initialize_by(app_id: 'shopify')
+    hook.assign_attributes(
       access_token: parsed_body['access_token'],
       status: 'enabled',
       reference_id: params[:shop],
-      settings: {
-        scope: parsed_body['scope']
-      }
+      settings: build_settings(hook)
     )
+    hook.save!
 
     redirect_to shopify_integration_url
+  end
+
+  def build_settings(hook)
+    settings = (hook.settings || {}).merge('scope' => parsed_body['scope'])
+    settings['refresh_token'] = parsed_body['refresh_token'] if parsed_body['refresh_token'].present?
+    settings['expires_at'] = token_expires_at if token_expires_at.present?
+    settings
+  end
+
+  def token_expires_at
+    if parsed_body['expires_in'].present?
+      parsed_body['expires_in'].to_i.seconds.from_now.iso8601
+    else
+      parsed_body['expires_at']
+    end
   end
 
   def parsed_body

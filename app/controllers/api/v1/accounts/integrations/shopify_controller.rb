@@ -28,7 +28,7 @@ class Api::V1::Accounts::Integrations::ShopifyController < Api::V1::Accounts::In
 
     orders = fetch_orders(customers.first['id'])
     render json: { orders: orders }
-  rescue ShopifyAPI::Errors::HttpResponseError => e
+  rescue ShopifyAPI::Errors::HttpResponseError, CustomExceptions::Shopify::TokenRefreshError => e
     render json: { error: e.message }, status: :unprocessable_entity
   end
 
@@ -96,7 +96,7 @@ class Api::V1::Accounts::Integrations::ShopifyController < Api::V1::Accounts::In
   end
 
   def shopify_session
-    ShopifyAPI::Auth::Session.new(shop: @hook.reference_id, access_token: @hook.access_token)
+    ShopifyAPI::Auth::Session.new(shop: @hook.reference_id, access_token: @hook.shopify_access_token)
   end
 
   def shopify_client

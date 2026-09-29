@@ -67,6 +67,14 @@ class Integrations::Hook < ApplicationRecord
     app_id == 'notion'
   end
 
+  def shopify?
+    app_id == 'shopify'
+  end
+
+  def shopify_access_token
+    Shopify::AccessToken.token_for(self)
+  end
+
   def disable
     update(status: 'disabled')
   end
