@@ -14,3 +14,4 @@ Status: TODO → IN PROGRESS → DONE → REVIEWED (then moved to done/). PARKED
 | 005 | [CI: Node 24 actions + faster builds](done/005-ci-actions-node24.md) | REVIEWED | Node24 action majors, pin ubuntu-24.04, parallel build with latest gated on tests, skip docs-only pushes, .dockerignore |
 | 006 | [Shopify settings page](done/006-shopify-settings-page.md) | REVIEWED | Admin-only Settings → Shopify: connect, reminder settings, test mode (test phones + delay) |
 | 007 | [Shopify settings page load fix](done/007-shopify-settings-page-load-fix.md) | REVIEWED | Hotfix: page reads data.abandoned_cart instead of data.settings.abandoned_cart; error message key |
+| 008 | [COD prepaid offer via Cashfree](008-cod-prepaid-offer-cashfree.md) | TODO | COD orders: confirmation + "pay online, save 10%" Cashfree link (24h); on payment, auto-edit + mark paid in Shopify. After 003 |
