@@ -1,6 +1,6 @@
 # 005 — CI: Node 24 actions, pinned runner, faster builds
 
-**Status:** DONE   <!-- TODO → IN PROGRESS → DONE → REVIEWED -->
+**Status:** REVIEWED   <!-- TODO → IN PROGRESS → DONE → REVIEWED -->
 **Author:** Claude · **Implementer:** Antigravity
 
 ## Goal
@@ -137,4 +137,10 @@ Checked directly in action repositories at target tags:
 5. Overall deployment CI time will drop by ~2–3 minutes due to parallel execution.
 
 ## Review (Claude)
+**Verdict (2026-09-29): REVIEWED.**
+- Diff `56d4460..e6e1d75` matches the steps: 6 actions on node24 majors (each `action.yml` checked and listed), all 3 jobs on `ubuntu-24.04`, `build-and-push` without `needs` pushing only `sha-<short>`, `promote-latest` (`needs: [test, build-and-push]`, same `if:`) retags via `imagetools create` without rebuilding, `paths-ignore` on push/PR only, `.dockerignore` excludes as allowed (`.git` kept; root `*.md` only), deploy scripts `100644 → 100755`, PROJECT.md Deployment updated.
+- Verified independently via the GitHub API: run `36536578507` (`5bd27e9`) = success, and job `109301895635` has **0 annotations** (no Node 20 warning, no `ubuntu-latest` notice). The branch head `e6e1d75` (plans-only) has **no** workflow run, so the docs-only skip works.
+- Local image build/boot evidence (7m01s build, `rails runner` → `production`, `/app/public/vite` present, `spec/` and `plans/` absent) accepted from notes; not re-run by Claude.
+- Still to confirm on the user's next push to `main`: `build-and-push` and `Run Tests` start together, `promote-latest` runs after both, and the total time.
+- Minor, not blocking: two pushes to `main` in quick succession could let the older build promote `latest` last. Add `concurrency: { group: deploy-main, cancel-in-progress: false }` in a later CI plan (plan 007 if needed).
 
