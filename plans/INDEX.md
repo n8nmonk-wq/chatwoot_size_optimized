@@ -1,7 +1,7 @@
 # Plans
 
 Open plans live in `plans/`. Verified plans move to `plans/done/`.
-Status: TODO → IN PROGRESS → DONE → REVIEWED (then moved to done/)
+Status: TODO → IN PROGRESS → DONE → REVIEWED (then moved to done/). PARKED = written but not to be started until the user says so; implementers skip it.
 
 | # | Plan | Status | Notes |
 |---|---|---|---|
@@ -10,3 +10,4 @@ Status: TODO → IN PROGRESS → DONE → REVIEWED (then moved to done/)
 | 001 | [Deploy hardening](done/001-deploy-hardening.md) | REVIEWED | Frontend-only gate; backend spec cleanup pending |
 | 002 | [Shopify abandoned-cart WhatsApp](002-shopify-abandoned-cart-whatsapp.md) | IN PROGRESS | Hourly cron, 24h reminder, one client; expiring Shopify tokens |
 | 003 | [Shopify order utility WhatsApp](003-shopify-order-utility-whatsapp.md) | TODO | Webhooks: confirmed/shipped/delivered; needs 002 first |
+| 004 | [Shopify per-account credentials](004-shopify-per-account-credentials.md) | PARKED | Second Shopify client = new account with its own Client ID/Secret. Do not start until the user says so |
