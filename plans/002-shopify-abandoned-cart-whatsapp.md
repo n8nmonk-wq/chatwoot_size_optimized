@@ -1,6 +1,6 @@
 # 002 — Shopify abandoned-cart WhatsApp reminder (24h, one client)
 
-**Status:** DONE   <!-- TODO → IN PROGRESS → DONE → REVIEWED -->
+**Status:** IN PROGRESS   <!-- TODO → IN PROGRESS → DONE → REVIEWED -->
 **Author:** Claude · **Implementer:** <Codex / Antigravity / other>
 
 ## Goal
@@ -126,4 +126,20 @@ One client wants a WhatsApp reminder sent to shoppers who abandon checkout, 24 h
   - Working tree clean, all commits local, nothing pushed to remote `main`.
 
 ## Review (Claude)
-<verdict, follow-ups>
+**Verdict (2026-09-29): not REVIEWED yet. Follow-ups F1–F7 below must be done first.** Status set back to IN PROGRESS.
+
+Checked: every commit `28cd702..5df7604` against the steps. `bundle exec rspec spec/models/shopify spec/services/shopify spec/controllers/shopify spec/controllers/api/v1/accounts/integrations/shopify_controller_spec.rb spec/jobs/shopify spec/configs/schedule_spec.rb spec/helpers/shopify` in the `mmochat-test-runner` Docker setup: **67 examples, 0 failures**. The migration is additive, send-once is enforced by the unique index plus insert-before-send, the job is registered on `scheduled_jobs`, and `channel.send_template(phone, info, nil)` matches `WhatsappCloudService#send_template(phone_number, template_info, message)`.
+
+### Follow-ups (implementer)
+- [ ] **F1. Checkouts past the first 50 are never reached (blocker).** `fetch_abandoned_checkouts` asks for `first: 50` with only `created_at:>=72h ago`. Checkouts younger than 24h and ones already recorded still fill those 50 slots. With more than 50 checkouts in 72h, the same 50 come back every hour and later ones are never seen. Fix: put both ends of the window in the Shopify query (`created_at:>=<72h ago> AND created_at:<=<24h ago>`), and page through with `pageInfo { hasNextPage endCursor }` until done. Spec: 2 pages of results → checkouts on both pages are processed.
+- [ ] **F2. Address phones without a country code.** Shopify address phones are often typed without one (the real Biotane checkout shows `9812143700` in the shipping address, `+91 98121 43700` as the customer phone). `normalize_phone` only strips non-digits, so a 10-digit number goes to WhatsApp as-is and fails. When the phone has no `+`, add the calling code for the address's `countryCodeV2` (add it to the query) with the existing phone library (`telephone_number` gem, already in the Gemfile). Don't hand-roll a country table. Spec: address phone `9812143700`, country IN → sends to `919812143700`.
+- [ ] **F3. Fail loudly on Shopify errors.** A GraphQL `errors` response (e.g. protected customer data not approved, missing scope) or an exception currently returns `[]` with one log line, so the feature silently does nothing. Raise instead. The job already isolates each hook, so let it log with the hook id and re-raise so Sidekiq shows the failure. Remove the blanket `rescue StandardError` in `fetch_abandoned_checkouts`.
+- [ ] **F4. Product text: first product + count (user decision, chat 2026-09-29).** `AbandonedCartPayloadBuilder#product_titles`: 1 item → its title. More than 1 → `"<first title> and N more item(s)"` ("1 more item", "3 more items"). Count distinct line items using `lineItems(first: 5)`, not quantities; if `pageInfo.hasNextPage`, the count still has to be right, so query `first: 50`. Fallback stays `your items`.
+- [ ] **F5. Name fallback.** `first_name` uses only `customer.firstName`. Add `shippingAddress.firstName` then `billingAddress.firstName` before `there`.
+- [ ] **F6. API version deviation.** Step 3 kept `2025-01`, saying the pinned `shopify_api` gem supports nothing newer. That version is out of Shopify's support window (Shopify falls it forward to the oldest supported version). Per the plan rules this should have been a stop-and-note, not a silent keep. Don't upgrade the gem here. Record in Implementation notes the gem version, the newest API version it accepts, and whether `abandonedCheckouts` works on the fallen-forward version. Claude will plan the gem upgrade separately.
+- [ ] **F7. Tool use not recorded.** No step's notes say whether code-review-graph, Token Savior, `sequential-thinking` (required for step 4), `tdd` or `review-delta` were used. Add one honest line per step: used / not used / unavailable.
+- Minor (do while there, no spec needed): `record_reminder` swallows `RecordInvalid`. Rescue only `RecordNotUnique`, so a validation bug fails loudly. Drop the `parse_time` rescue (Shopify always sends ISO 8601).
+
+### Kept as is (checked, fine)
+- Abandonment time uses `createdAt`, not `updatedAt`. Acceptable for a 24h reminder.
+- No conversation is created on send (noted in step 4). A conversation starts when the customer replies.
