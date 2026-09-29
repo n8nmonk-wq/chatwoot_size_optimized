@@ -74,3 +74,10 @@ remove_orphan_conversations_job:
   cron: '0 */12 * * *'
   class: 'Internal::RemoveOrphanConversationsJob'
   queue: housekeeping
+
+# executed hourly at 15 minutes past the hour
+# dispatches Shopify abandoned cart reminders over WhatsApp
+shopify_abandoned_cart_reminder_job:
+  cron: '15 * * * *'
+  class: 'Shopify::AbandonedCartReminderJob'
+  queue: scheduled_jobs
