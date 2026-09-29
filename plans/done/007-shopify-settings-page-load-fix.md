@@ -1,6 +1,6 @@
 # 007 — Fix: Shopify settings page shows defaults after refresh
 
-**Status:** DONE   <!-- TODO → IN PROGRESS → DONE → REVIEWED -->
+**Status:** REVIEWED   <!-- TODO → IN PROGRESS → DONE → REVIEWED -->
 **Author:** Claude · **Implementer:** Antigravity
 **Priority:** hotfix, do next. It's live in production (deployed 2026-09-29).
 
@@ -66,3 +66,5 @@ Second, smaller bug in the same file: the error handlers read `error.response.da
     - `Duration: 96.57s`
 
 ## Review (Claude)
+**Verdict (2026-09-29): REVIEWED.** `b5631a6` matches the plan: `populateFormSettings` reads `data.settings.abandoned_cart`, and the error handlers read `data.error`. The spec now mocks the real `hook_response_payload` shape and asserts load, save and the 422 message. Claude re-ran `TZ=UTC npx vitest run`: **379 files, 4168 passed**. ESLint clean on the Shopify settings files. Tool use recorded honestly.
+- Minor, not blocking: the fallbacks `|| data.abandoned_cart` and `|| data.message` are dead (the API never sends those shapes). Remove them next time `Shopify.vue` is touched (plan 003 step 6).
