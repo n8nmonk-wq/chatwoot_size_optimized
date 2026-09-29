@@ -22,4 +22,8 @@ class HookPolicy < ApplicationPolicy
   def destroy?
     @account_user.administrator?
   end
+
+  def register_webhooks?
+    @account_user.administrator?
+  end
 end

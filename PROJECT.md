@@ -105,3 +105,48 @@ MMOChat automatically checks for abandoned Shopify checkouts every hour (at :15)
   ```bash
   bundle exec rails runner "h = Account.find(1).hooks.find_by!(app_id: 'shopify'); h.settings['abandoned_cart']['enabled'] = false; h.save!"
   ```
+
+### Order Utility Messages on WhatsApp (Real-time Webhooks)
+
+MMOChat delivers automated real-time WhatsApp utility notifications for Shopify orders across four key order lifecycle milestones.
+
+#### Four Milestones & Shopify Triggers
+1. **Confirmed (`confirmed`)**:
+   - Webhook topic: `orders/create` or `orders/updated` (when `financial_status` is `paid` / `partially_paid` / `authorized`).
+2. **Shipped (`shipped`)**:
+   - Webhook topic: `fulfillments/create` or `fulfillments/update` with `shipment_status` in `['label_printed', 'label_purchased', 'confirmed', 'in_transit']` or without a specific status.
+3. **Out for Delivery (`out_for_delivery`)**:
+   - Webhook topic: `fulfillments/update` with `shipment_status == 'out_for_delivery'`.
+4. **Delivered (`delivered`)**:
+   - Webhook topic: `fulfillments/update` with `shipment_status == 'delivered'`.
+
+#### Idempotency & Out-of-Order Protection
+- Each milestone event is recorded in `shopify_order_notifications` with unique constraint `[account_id, order_id, milestone]`, guaranteeing send-once delivery per milestone per order.
+- Fulfillment milestones store `fulfillment_id`.
+- Terminal status protection: if a milestone arrives after an order is marked `delivered`, or out-of-order events arrive, the state machine logs and drops outdated transitions.
+
+#### Template Variable Mapping & Sources
+Meta Utility templates are configurable per milestone. Each template slot (header, body, button) maps to an allowed source:
+- `order_name`: Shopify order name (e.g. `#1001`).
+- `first_name`: Customer's first name (fallback: `'there'`).
+- `full_name`: Customer's full name (fallback: `'Customer'`).
+- `store_name`: Account or store brand name.
+- `item_summary`: Summary of line items (e.g. `Blue Shirt and 2 more items`).
+- `total`: Formatted order total with currency (e.g. `₹1,499.00`).
+- `tracking_number`: Courier shipment tracking number (for fulfillment milestones).
+- `courier`: Tracking company name (for fulfillment milestones).
+- `order_status_url_suffix`: Dynamic suffix for Shopify order status page URL button.
+
+#### Shared Settings & Test Mode
+- **Store Domain**: Configured under Abandoned Cart settings; applies globally across abandoned cart and order updates to validate and build dynamic button URLs.
+- **Test Mode (`test_phones`)**: When test phone numbers are defined, order updates are strictly gated to matching phone numbers. Orders with customer phones outside the test list are skipped safely without marking failure, allowing seamless validation before public rollout.
+
+#### Webhook Registration
+- **Dashboard UI**: Click **Register webhooks** in **Settings → Shopify** under the Order Updates section.
+- **Topics Registered**: `orders/create`, `orders/updated`, `fulfillments/create`, `fulfillments/update`.
+- Webhooks target `/webhooks/shopify` and are verified with Shopify's HMAC SHA-256 signature using the app's client secret.
+
+#### Meta Native Opt-In Switch-Off
+> [!IMPORTANT]
+> If Meta / WhatsApp native order updates are enabled in Shopify admin (Settings → Notifications → Customer notifications), buyers might receive duplicate notifications directly from Meta. Remember to disable Meta's native WhatsApp order notifications in your Shopify store settings when switching to MMOChat order updates.
+

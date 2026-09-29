@@ -483,6 +483,29 @@ RSpec.describe Shopify::AbandonedCartReminderService do
         expect(whatsapp_channel).not_to receive(:send_template)
         described_class.new(hook).perform
       end
+
+      it 'uses custom template mapping when configured' do
+        hook.settings['abandoned_cart']['template'] = {
+          'template_name' => 'custom_cart_reminder',
+          'language' => 'en',
+          'variables' => {
+            'body.1' => 'first_name',
+            'body.2' => 'item_summary',
+            'button.0' => 'checkout_url_suffix'
+          }
+        }
+        hook.save!
+
+        expect { described_class.new(hook).perform }.to change {
+          Shopify::AbandonedCheckoutReminder.where(account_id: account.id, checkout_id: checkout_id, status: 'sent').count
+        }.by(1)
+
+        expected_request = a_request(:post, meta_messages_url_pattern).with do |req|
+          body = JSON.parse(req.body)
+          body['template']['name'] == 'custom_cart_reminder'
+        end
+        expect(expected_request).to have_been_made.once
+      end
     end
   end
 end

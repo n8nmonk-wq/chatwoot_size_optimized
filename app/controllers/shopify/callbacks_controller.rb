@@ -34,8 +34,15 @@ class Shopify::CallbacksController < ApplicationController
       settings: build_settings(hook)
     )
     hook.save!
+    register_webhooks(hook)
 
     redirect_to shopify_integration_url
+  end
+
+  def register_webhooks(hook)
+    Shopify::WebhookRegistrationService.perform(hook)
+  rescue StandardError => e
+    Rails.logger.error("Failed to register Shopify webhooks on connect: #{e.message}")
   end
 
   def build_settings(hook)

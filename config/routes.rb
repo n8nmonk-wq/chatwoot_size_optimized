@@ -274,6 +274,7 @@ Rails.application.routes.draw do
                 post :auth
                 get :orders
               end
+              post :register_webhooks
             end
           end
 

@@ -20,6 +20,10 @@ class ShopifyAPI extends ApiClient {
   disconnect() {
     return axios.delete(this.url);
   }
+
+  registerWebhooks() {
+    return axios.post(`${this.url}/register_webhooks`);
+  }
 }
 
 export default new ShopifyAPI();

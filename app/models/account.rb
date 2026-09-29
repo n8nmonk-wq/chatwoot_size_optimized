@@ -87,6 +87,7 @@ class Account < ApplicationRecord
   has_many :notification_settings, dependent: :destroy_async
   has_many :notifications, dependent: :destroy_async
   has_many :shopify_abandoned_checkout_reminders, dependent: :destroy_async, class_name: 'Shopify::AbandonedCheckoutReminder'
+  has_many :shopify_order_notifications, dependent: :destroy_async, class_name: 'Shopify::OrderNotification'
   has_many :sms_channels, dependent: :destroy_async, class_name: '::Channel::Sms'
   has_many :teams, dependent: :destroy_async
 

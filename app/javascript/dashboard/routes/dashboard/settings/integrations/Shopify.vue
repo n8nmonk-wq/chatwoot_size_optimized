@@ -15,6 +15,7 @@ import Dialog from 'dashboard/components-next/dialog/Dialog.vue';
 import Switch from 'dashboard/components-next/switch/Switch.vue';
 import Select from 'dashboard/components-next/select/Select.vue';
 import Icon from 'dashboard/components-next/icon/Icon.vue';
+import ShopifyTemplateMapping from './ShopifyTemplateMapping.vue';
 
 defineProps({
   error: {
@@ -28,6 +29,9 @@ const store = useStore();
 
 const isLoading = ref(true);
 const isSaving = ref(false);
+const isSavingOrderUpdates = ref(false);
+const isRegisteringWebhooks = ref(false);
+const webhookRegistrationResult = ref(null);
 const isSubmittingStoreUrl = ref(false);
 const isDisconnecting = ref(false);
 
@@ -44,10 +48,69 @@ const enabled = ref(false);
 const inboxId = ref('');
 const templateName = ref('');
 const language = ref('en');
+const cartTemplate = ref({
+  template_name: '',
+  language: 'en',
+  variables: {},
+});
 const storeDomain = ref('');
 const requireMarketingConsent = ref(false);
 const testPhones = ref('');
 const delayHours = ref(24);
+
+// Order updates form fields
+const orderUpdatesEnabled = ref(false);
+const orderUpdatesInboxId = ref('');
+const MILESTONE_KINDS = [
+  'confirmed',
+  'shipped',
+  'out_for_delivery',
+  'delivered',
+];
+const milestoneConfigs = computed(() => [
+  {
+    key: 'confirmed',
+    title: t(
+      'INTEGRATION_SETTINGS.SHOPIFY.ORDER_UPDATES.MILESTONES.CONFIRMED.TITLE'
+    ),
+    description: t(
+      'INTEGRATION_SETTINGS.SHOPIFY.ORDER_UPDATES.MILESTONES.CONFIRMED.DESCRIPTION'
+    ),
+  },
+  {
+    key: 'shipped',
+    title: t(
+      'INTEGRATION_SETTINGS.SHOPIFY.ORDER_UPDATES.MILESTONES.SHIPPED.TITLE'
+    ),
+    description: t(
+      'INTEGRATION_SETTINGS.SHOPIFY.ORDER_UPDATES.MILESTONES.SHIPPED.DESCRIPTION'
+    ),
+  },
+  {
+    key: 'out_for_delivery',
+    title: t(
+      'INTEGRATION_SETTINGS.SHOPIFY.ORDER_UPDATES.MILESTONES.OUT_FOR_DELIVERY.TITLE'
+    ),
+    description: t(
+      'INTEGRATION_SETTINGS.SHOPIFY.ORDER_UPDATES.MILESTONES.OUT_FOR_DELIVERY.DESCRIPTION'
+    ),
+  },
+  {
+    key: 'delivered',
+    title: t(
+      'INTEGRATION_SETTINGS.SHOPIFY.ORDER_UPDATES.MILESTONES.DELIVERED.TITLE'
+    ),
+    description: t(
+      'INTEGRATION_SETTINGS.SHOPIFY.ORDER_UPDATES.MILESTONES.DELIVERED.DESCRIPTION'
+    ),
+  },
+]);
+const milestones = ref({
+  confirmed: { enabled: false, template: null },
+  shipped: { enabled: false, template: null },
+  out_for_delivery: { enabled: false, template: null },
+  delivered: { enabled: false, template: null },
+});
 
 const inboxesList = useMapGetter('inboxes/getInboxes');
 
@@ -104,12 +167,28 @@ const populateFormSettings = data => {
   inboxId.value = cart.inbox_id ?? '';
   templateName.value = cart.template_name || '';
   language.value = cart.language || 'en';
+  cartTemplate.value = cart.template || {
+    template_name: cart.template_name || '',
+    language: cart.language || 'en',
+    variables: {},
+  };
   storeDomain.value = cart.store_domain || '';
   requireMarketingConsent.value = Boolean(cart.require_marketing_consent);
   testPhones.value = Array.isArray(cart.test_phones)
     ? cart.test_phones.join(', ')
     : '';
   delayHours.value = cart.delay_hours || 24;
+
+  const orders = data.settings?.order_updates || {};
+  orderUpdatesEnabled.value = Boolean(orders.enabled);
+  orderUpdatesInboxId.value = orders.inbox_id ?? '';
+  MILESTONE_KINDS.forEach(kind => {
+    const m = orders.milestones?.[kind] || {};
+    milestones.value[kind] = {
+      enabled: Boolean(m.enabled),
+      template: m.template || null,
+    };
+  });
 };
 
 const fetchSettings = async () => {
@@ -178,14 +257,19 @@ const handleSaveSettings = async () => {
       abandoned_cart: {
         enabled: enabled.value,
         inbox_id: inboxId.value ? Number(inboxId.value) : null,
-        template_name: templateName.value.trim(),
-        language: language.value.trim(),
+        template_name:
+          cartTemplate.value?.template_name || templateName.value.trim(),
+        language: cartTemplate.value?.language || language.value.trim(),
         store_domain: storeDomain.value.trim(),
         require_marketing_consent: requireMarketingConsent.value,
         test_phones: parsedTestPhones,
         delay_hours: Number(delayHours.value) || 24,
       },
     };
+
+    if (cartTemplate.value?.template_name) {
+      payload.abandoned_cart.template = cartTemplate.value;
+    }
 
     const { data } = await ShopifyAPI.update(payload);
     populateFormSettings(data);
@@ -198,6 +282,72 @@ const handleSaveSettings = async () => {
     useAlert(errorMsg);
   } finally {
     isSaving.value = false;
+  }
+};
+
+const handleSaveOrderUpdates = async () => {
+  try {
+    isSavingOrderUpdates.value = true;
+    const milestonePayload = {};
+    MILESTONE_KINDS.forEach(kind => {
+      const m = milestones.value[kind];
+      milestonePayload[kind] = {
+        enabled: m.enabled,
+        template: m.template,
+      };
+    });
+
+    const payload = {
+      order_updates: {
+        enabled: orderUpdatesEnabled.value,
+        inbox_id: orderUpdatesInboxId.value
+          ? Number(orderUpdatesInboxId.value)
+          : null,
+        milestones: milestonePayload,
+      },
+    };
+
+    const { data } = await ShopifyAPI.update(payload);
+    populateFormSettings(data);
+    useAlert(t('INTEGRATION_SETTINGS.SHOPIFY.ORDER_UPDATES.SAVE_SUCCESS'));
+  } catch (error) {
+    const errorMsg =
+      error?.response?.data?.error ||
+      error?.response?.data?.message ||
+      t('INTEGRATION_SETTINGS.SHOPIFY.ORDER_UPDATES.SAVE_ERROR');
+    useAlert(errorMsg);
+  } finally {
+    isSavingOrderUpdates.value = false;
+  }
+};
+
+const handleRegisterWebhooks = async () => {
+  try {
+    isRegisteringWebhooks.value = true;
+    webhookRegistrationResult.value = null;
+    const { data } = await ShopifyAPI.registerWebhooks();
+    webhookRegistrationResult.value = {
+      success: true,
+      message: t(
+        'INTEGRATION_SETTINGS.SHOPIFY.ORDER_UPDATES.REGISTER_WEBHOOKS.SUCCESS'
+      ),
+      results: data.results,
+    };
+    useAlert(
+      t('INTEGRATION_SETTINGS.SHOPIFY.ORDER_UPDATES.REGISTER_WEBHOOKS.SUCCESS')
+    );
+  } catch (error) {
+    const errorMsg =
+      error?.response?.data?.error ||
+      error?.response?.data?.message ||
+      'Failed to register webhooks';
+    webhookRegistrationResult.value = {
+      success: false,
+      error: errorMsg,
+    };
+    useAlert(errorMsg);
+  } finally {
+    isRegisteringWebhooks.value = false;
   }
 };
 
@@ -343,33 +493,20 @@ onMounted(async () => {
               </span>
             </div>
 
-            <Input
-              v-model="templateName"
-              :label="
-                t('INTEGRATION_SETTINGS.SHOPIFY.REMINDERS.TEMPLATE_NAME.LABEL')
-              "
-              :placeholder="
-                t(
-                  'INTEGRATION_SETTINGS.SHOPIFY.REMINDERS.TEMPLATE_NAME.PLACEHOLDER'
-                )
-              "
-              :message="
-                t('INTEGRATION_SETTINGS.SHOPIFY.REMINDERS.TEMPLATE_NAME.HELP')
-              "
-            />
-
-            <Input
-              v-model="language"
-              :label="
-                t('INTEGRATION_SETTINGS.SHOPIFY.REMINDERS.LANGUAGE.LABEL')
-              "
-              :placeholder="
-                t('INTEGRATION_SETTINGS.SHOPIFY.REMINDERS.LANGUAGE.PLACEHOLDER')
-              "
-              :message="
-                t('INTEGRATION_SETTINGS.SHOPIFY.REMINDERS.LANGUAGE.HELP')
-              "
-            />
+            <div class="flex flex-col gap-1.5">
+              <label class="text-sm font-medium text-n-slate-12">
+                {{
+                  t(
+                    'INTEGRATION_SETTINGS.SHOPIFY.TEMPLATE_MAPPING.TEMPLATE_LABEL'
+                  )
+                }}
+              </label>
+              <ShopifyTemplateMapping
+                v-model="cartTemplate"
+                :inbox-id="inboxId"
+                kind="abandoned_cart"
+              />
+            </div>
 
             <Input
               v-model="storeDomain"
@@ -442,6 +579,153 @@ onMounted(async () => {
                 :is-loading="isSaving"
                 :label="t('INTEGRATION_SETTINGS.SHOPIFY.REMINDERS.SAVE_BUTTON')"
                 @click="handleSaveSettings"
+              />
+            </div>
+          </div>
+        </div>
+
+        <!-- Order Updates Section (when connected) -->
+        <div
+          v-if="hookData.connected"
+          class="flex flex-col p-6 outline outline-n-container outline-1 bg-n-card rounded-xl gap-6"
+        >
+          <div class="flex flex-col gap-1">
+            <h3 class="m-0 text-heading-2 text-n-slate-12">
+              {{ t('INTEGRATION_SETTINGS.SHOPIFY.ORDER_UPDATES.TITLE') }}
+            </h3>
+            <p class="m-0 text-n-slate-11 text-body-main">
+              {{ t('INTEGRATION_SETTINGS.SHOPIFY.ORDER_UPDATES.DESCRIPTION') }}
+            </p>
+          </div>
+
+          <!-- Meta switch-off notice -->
+          <div
+            class="flex items-center gap-3 p-4 rounded-xl border border-n-amber-6 bg-n-amber-2 text-n-amber-11 text-sm font-medium"
+          >
+            <Icon icon="i-lucide-alert-triangle" class="size-5 shrink-0" />
+            <span>{{
+              t('INTEGRATION_SETTINGS.SHOPIFY.ORDER_UPDATES.META_NOTICE')
+            }}</span>
+          </div>
+
+          <!-- Shared settings notice -->
+          <div
+            class="flex items-center gap-3 p-4 rounded-xl border border-n-blue-6 bg-n-blue-2 text-n-blue-11 text-sm"
+          >
+            <Icon icon="i-lucide-info" class="size-5 shrink-0" />
+            <span>{{
+              t(
+                'INTEGRATION_SETTINGS.SHOPIFY.ORDER_UPDATES.SHARED_SETTINGS_NOTICE'
+              )
+            }}</span>
+          </div>
+
+          <div
+            class="flex items-center justify-between py-3 border-b border-n-weak"
+          >
+            <span class="text-sm font-medium text-n-slate-12">
+              {{ t('INTEGRATION_SETTINGS.SHOPIFY.ORDER_UPDATES.ENABLE') }}
+            </span>
+            <Switch v-model="orderUpdatesEnabled" />
+          </div>
+
+          <div v-if="orderUpdatesEnabled" class="flex flex-col gap-5">
+            <div class="flex flex-col gap-1.5">
+              <label class="text-sm font-medium text-n-slate-12">
+                {{
+                  t('INTEGRATION_SETTINGS.SHOPIFY.ORDER_UPDATES.INBOX.LABEL')
+                }}
+              </label>
+              <Select
+                v-model="orderUpdatesInboxId"
+                :options="whatsappInboxOptions"
+                :placeholder="
+                  t(
+                    'INTEGRATION_SETTINGS.SHOPIFY.ORDER_UPDATES.INBOX.PLACEHOLDER'
+                  )
+                "
+                class="w-full"
+              />
+              <span class="text-xs text-n-slate-11">
+                {{ t('INTEGRATION_SETTINGS.SHOPIFY.ORDER_UPDATES.INBOX.HELP') }}
+              </span>
+            </div>
+
+            <!-- Milestones List -->
+            <div class="flex flex-col gap-4">
+              <div
+                v-for="milestone in milestoneConfigs"
+                :key="milestone.key"
+                class="flex flex-col gap-3 p-4 rounded-xl border border-n-weak bg-n-surface-1"
+              >
+                <div class="flex items-center justify-between">
+                  <div class="flex flex-col gap-0.5">
+                    <span class="text-sm font-medium text-n-slate-12">
+                      {{ milestone.title }}
+                    </span>
+                    <span class="text-xs text-n-slate-11">
+                      {{ milestone.description }}
+                    </span>
+                  </div>
+                  <Switch v-model="milestones[milestone.key].enabled" />
+                </div>
+
+                <div v-if="milestones[milestone.key].enabled" class="pt-2">
+                  <ShopifyTemplateMapping
+                    v-model="milestones[milestone.key].template"
+                    :inbox-id="orderUpdatesInboxId"
+                    :kind="milestone.key"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <!-- Register Webhooks Action -->
+            <div
+              class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-3 border-t border-n-weak"
+            >
+              <div class="flex flex-col gap-0.5">
+                <span class="text-sm font-medium text-n-slate-12">
+                  {{
+                    t(
+                      'INTEGRATION_SETTINGS.SHOPIFY.ORDER_UPDATES.REGISTER_WEBHOOKS.BUTTON'
+                    )
+                  }}
+                </span>
+                <span
+                  v-if="webhookRegistrationResult?.success"
+                  class="text-xs text-n-teal-11"
+                >
+                  {{ webhookRegistrationResult.message }}
+                </span>
+                <span
+                  v-else-if="webhookRegistrationResult?.error"
+                  class="text-xs text-n-ruby-11"
+                >
+                  {{ webhookRegistrationResult.error }}
+                </span>
+              </div>
+              <Button
+                faded
+                slate
+                :is-loading="isRegisteringWebhooks"
+                :label="
+                  t(
+                    'INTEGRATION_SETTINGS.SHOPIFY.ORDER_UPDATES.REGISTER_WEBHOOKS.BUTTON'
+                  )
+                "
+                @click="handleRegisterWebhooks"
+              />
+            </div>
+
+            <div class="flex justify-end pt-4">
+              <Button
+                teal
+                :is-loading="isSavingOrderUpdates"
+                :label="
+                  t('INTEGRATION_SETTINGS.SHOPIFY.ORDER_UPDATES.SAVE_BUTTON')
+                "
+                @click="handleSaveOrderUpdates"
               />
             </div>
           </div>

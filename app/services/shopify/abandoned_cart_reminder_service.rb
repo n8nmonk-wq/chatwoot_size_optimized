@@ -2,8 +2,7 @@
 
 class Shopify::AbandonedCartReminderService
   include Shopify::IntegrationHelper
-
-  UNSUBSCRIBED_TAGS = %w[unsubscribed opted_out dnd].freeze
+  include Shopify::SharedHelper
 
   GRAPHQL_QUERY = <<~GRAPHQL
     query GetAbandonedCheckouts($query: String, $after: String) {
@@ -126,7 +125,7 @@ class Shopify::AbandonedCartReminderService
     phone = resolve_and_validate_phone(checkout, checkout_id)
     return if phone.blank?
 
-    button_suffix = extract_button_suffix(checkout['abandonedCheckoutUrl'])
+    button_suffix = extract_button_suffix(checkout['abandonedCheckoutUrl'], store_domain)
     return record_reminder(checkout_id, 'failed', 'checkout_url_host_mismatch') if button_suffix.nil?
 
     send_reminder(checkout, phone, button_suffix)
@@ -136,7 +135,7 @@ class Shopify::AbandonedCartReminderService
     raw_phone, country_code = extract_raw_phone_and_country(checkout)
     return test_phones.present? ? nil : record_reminder(checkout_id, 'skipped', 'missing_phone') if raw_phone.blank?
 
-    phone = normalize_phone(raw_phone, country_code)
+    phone = normalize_phone(raw_phone, country_code, inbox)
     return nil if test_phones.present? && test_phones.exclude?(phone)
     return record_reminder(checkout_id, 'skipped', 'missing_phone') if phone.blank?
 
@@ -145,7 +144,7 @@ class Shopify::AbandonedCartReminderService
 
   def validate_contact_consent_and_opt_out(checkout, checkout_id, phone)
     return record_reminder(checkout_id, 'skipped', 'consent_required') if require_marketing_consent? && !customer_consented?(checkout)
-    return record_reminder(checkout_id, 'skipped', 'contact_opted_out') if contact_opted_out_or_blocked?(phone)
+    return record_reminder(checkout_id, 'skipped', 'contact_opted_out') if contact_opted_out_or_blocked?(@hook.account, inbox, phone)
 
     phone
   end
@@ -162,53 +161,10 @@ class Shopify::AbandonedCartReminderService
     [nil, nil]
   end
 
-  def normalize_phone(raw_phone, country_code)
-    clean = parsed_e164(raw_phone, country_code) || raw_phone.gsub(/\D/, '')
-    return nil if clean.blank?
-
-    normalizer = Whatsapp::PhoneNumberNormalizationService.new(inbox)
-    normalizer.normalize_and_find_contact_by_provider(clean, :cloud).presence || clean
-  end
-
-  def parsed_e164(raw_phone, country_code)
-    if raw_phone.start_with?('+')
-      TelephoneNumber.parse(raw_phone).e164_number&.delete_prefix('+')
-    elsif country_code.present?
-      TelephoneNumber.parse(raw_phone, country_code).e164_number&.delete_prefix('+')
-    end
-  end
-
   def customer_consented?(checkout)
     %w[emailMarketingConsent smsMarketingConsent].any? do |type|
       checkout.dig('customer', type, 'marketingState')&.casecmp?('subscribed')
     end
-  end
-
-  def contact_opted_out_or_blocked?(phone_digits)
-    candidates = ([phone_digits, "+#{phone_digits}"] +
-      Whatsapp::PhoneNumberNormalizationService.new(inbox).phone_number_candidates(phone_digits).flat_map { |c| [c, "+#{c}"] }).uniq
-
-    @hook.account.contacts.where(phone_number: candidates).any? { |c| c.blocked? || c.label_list.intersect?(UNSUBSCRIBED_TAGS) }
-  end
-
-  def parse_url(url_string)
-    URI.parse(url_string)
-  rescue URI::InvalidURIError
-    nil
-  end
-
-  def valid_checkout_host?(parsed_url)
-    expected_host = parse_url("https://#{store_domain}")&.host
-    expected_host.present? && parsed_url&.host&.casecmp?(expected_host)
-  end
-
-  def extract_button_suffix(raw_url)
-    return nil if raw_url.blank?
-
-    parsed = parse_url(raw_url)
-    return nil unless valid_checkout_host?(parsed)
-
-    [parsed.path.delete_prefix('/'), parsed.query].compact_blank.join('?')
   end
 
   def send_reminder(checkout, phone, button_suffix)

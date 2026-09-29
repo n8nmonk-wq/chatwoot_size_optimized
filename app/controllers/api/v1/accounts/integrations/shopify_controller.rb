@@ -1,8 +1,9 @@
 class Api::V1::Accounts::Integrations::ShopifyController < Api::V1::Accounts::Integrations::BaseController
   include Shopify::IntegrationHelper
+  include Shopify::SharedHelper
   before_action :setup_shopify_context, only: [:orders]
   before_action :fetch_hook, except: [:auth]
-  before_action :check_authorization, only: [:auth, :show, :update, :destroy]
+  before_action :check_authorization, only: [:auth, :show, :update, :destroy, :register_webhooks]
   before_action :validate_contact, only: [:orders]
 
   def auth
@@ -29,12 +30,18 @@ class Api::V1::Accounts::Integrations::ShopifyController < Api::V1::Accounts::In
   end
 
   def update
-    validation_error = validate_abandoned_cart_params
-    return render json: { error: validation_error }, status: :unprocessable_entity if validation_error.present?
+    updater = Shopify::SettingsUpdater.new(@hook, params, Current.account)
+    return render json: { error: updater.error }, status: :unprocessable_entity unless updater.valid?
 
-    @hook.settings = @hook.settings.merge('abandoned_cart' => build_updated_abandoned_cart_settings)
-    @hook.save!
+    updater.perform!
     render json: hook_response_payload
+  end
+
+  def register_webhooks
+    result = Shopify::WebhookRegistrationService.new(@hook).perform
+    return render json: result if result[:success]
+
+    render json: { error: result[:error] || 'Failed to register webhooks' }, status: :unprocessable_entity
   end
 
   def orders
@@ -59,93 +66,12 @@ class Api::V1::Accounts::Integrations::ShopifyController < Api::V1::Accounts::In
   def hook_response_payload
     {
       connected: @hook.present? && @hook.enabled?, reference_id: @hook.reference_id,
-      expires_at: @hook.settings['expires_at'], settings: { abandoned_cart: @hook.settings['abandoned_cart'] || {} }
+      expires_at: @hook.settings['expires_at'],
+      settings: {
+        abandoned_cart: @hook.settings['abandoned_cart'] || {},
+        order_updates: @hook.settings['order_updates'] || {}
+      }
     }
-  end
-
-  def abandoned_cart_params
-    params[:abandoned_cart] || {}
-  end
-
-  def validate_abandoned_cart_params
-    return if params[:abandoned_cart].blank?
-
-    validate_inbox_param || validate_delay_param || validate_test_phones_param || validate_store_domain_param
-  end
-
-  def validate_inbox_param
-    return unless abandoned_cart_params.key?(:inbox_id) && abandoned_cart_params[:inbox_id].present?
-
-    inbox = Current.account.inboxes.find_by(id: abandoned_cart_params[:inbox_id])
-    'Invalid WhatsApp inbox' if inbox.blank? || inbox.channel_type != 'Channel::Whatsapp'
-  end
-
-  def validate_delay_param
-    return unless abandoned_cart_params.key?(:delay_hours) && abandoned_cart_params[:delay_hours].present?
-
-    val = abandoned_cart_params[:delay_hours].to_i
-    'Delay hours must be between 1 and 72' unless val.between?(1, 72)
-  end
-
-  def validate_test_phones_param
-    return unless abandoned_cart_params.key?(:test_phones)
-
-    phones = abandoned_cart_params[:test_phones]
-    return 'Test phones must be an array' unless phones.is_a?(Array)
-
-    'Maximum 5 test phones allowed' if phones.length > 5
-  end
-
-  def validate_store_domain_param
-    return unless abandoned_cart_params.key?(:store_domain) && abandoned_cart_params[:store_domain].present?
-
-    domain = normalize_store_domain(abandoned_cart_params[:store_domain])
-    'Invalid store domain' if domain.blank? || !valid_hostname?(domain)
-  end
-
-  def valid_hostname?(hostname)
-    hostname =~ /\A[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+\z/
-  end
-
-  def normalize_store_domain(raw_domain)
-    return '' if raw_domain.blank?
-
-    domain = raw_domain.to_s.strip.sub(%r{\Ahttps?://}i, '')
-    domain.split(%r{[:/?#]}).first&.strip&.downcase || ''
-  end
-
-  def build_updated_abandoned_cart_settings
-    current = (@hook.settings['abandoned_cart'] || {}).dup
-    abandoned_cart_params.each do |key, value|
-      mapped = transform_cart_setting(key.to_sym, value)
-      current[key.to_s] = mapped unless mapped == :ignore
-    end
-    current
-  end
-
-  CART_SETTING_MAPPERS = {
-    enabled: ->(v) { ActiveRecord::Type::Boolean.new.cast(v) },
-    require_marketing_consent: ->(v) { ActiveRecord::Type::Boolean.new.cast(v) },
-    template_name: ->(v) { v.to_s.strip }, language: ->(v) { v.to_s.strip },
-    inbox_id: ->(v) { v.presence&.to_i }, delay_hours: ->(v) { v.to_i }
-  }.freeze
-
-  def transform_cart_setting(key, value)
-    return CART_SETTING_MAPPERS[key].call(value) if CART_SETTING_MAPPERS.key?(key)
-    return normalize_store_domain(value) if key == :store_domain
-    return normalize_test_phones(value) if key == :test_phones
-
-    :ignore
-  end
-
-  def normalize_test_phones(raw_phones)
-    return [] unless raw_phones.is_a?(Array)
-
-    raw_phones.map do |raw|
-      phone = raw.to_s.strip
-      country = phone.start_with?('+') ? nil : 'IN'
-      TelephoneNumber.parse(phone, country).e164_number&.delete_prefix('+').presence || phone.gsub(/\D/, '')
-    end.compact_blank.uniq
   end
 
   def redirect_uri

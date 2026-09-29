@@ -10,6 +10,7 @@ vi.mock('dashboard/api/integrations/shopify', () => ({
     get: vi.fn(),
     update: vi.fn(),
     disconnect: vi.fn(),
+    registerWebhooks: vi.fn(),
   },
 }));
 
@@ -34,6 +35,18 @@ vi.mock('dashboard/composables/store', () => ({
         value: [
           { id: 10, name: 'WhatsApp Sales', channel_type: 'Channel::Whatsapp' },
           { id: 20, name: 'Web Widget', channel_type: 'Channel::WebWidget' },
+        ],
+      };
+    }
+    if (getter === 'inboxes/getFilteredWhatsAppTemplates') {
+      return {
+        value: () => [
+          {
+            name: 'sample_template',
+            language: 'en',
+            status: 'APPROVED',
+            components: [{ type: 'BODY', text: 'Hi {{1}}' }],
+          },
         ],
       };
     }
@@ -82,6 +95,7 @@ describe('Shopify.vue', () => {
           Switch: true,
           Select: true,
           Icon: true,
+          ShopifyTemplateMapping: true,
         },
         mocks: {
           $t: key => key,
@@ -97,7 +111,7 @@ describe('Shopify.vue', () => {
     );
   });
 
-  it('renders connected state and populates reminder settings from real API response shape', async () => {
+  it('renders connected state and populates reminder and order update settings from real API response shape', async () => {
     ShopifyAPI.get.mockResolvedValue({
       data: {
         connected: true,
@@ -113,6 +127,20 @@ describe('Shopify.vue', () => {
             require_marketing_consent: true,
             test_phones: ['+919876543210'],
             delay_hours: 2,
+          },
+          order_updates: {
+            enabled: true,
+            inbox_id: 10,
+            milestones: {
+              confirmed: {
+                enabled: true,
+                template: {
+                  template_name: 'order_confirmed',
+                  language: 'en',
+                  variables: { 'body.1': 'first_name' },
+                },
+              },
+            },
           },
         },
       },
@@ -131,6 +159,7 @@ describe('Shopify.vue', () => {
           Switch: true,
           Select: true,
           Icon: true,
+          ShopifyTemplateMapping: true,
         },
         mocks: {
           $t: key => key,
@@ -152,6 +181,13 @@ describe('Shopify.vue', () => {
     expect(wrapper.vm.requireMarketingConsent).toBe(true);
     expect(wrapper.vm.testPhones).toBe('+919876543210');
     expect(wrapper.vm.delayHours).toBe(2);
+
+    expect(wrapper.vm.orderUpdatesEnabled).toBe(true);
+    expect(wrapper.vm.orderUpdatesInboxId).toBe(10);
+    expect(wrapper.vm.milestones.confirmed.enabled).toBe(true);
+    expect(wrapper.vm.milestones.confirmed.template.template_name).toBe(
+      'order_confirmed'
+    );
   });
 
   it('saves only the permitted reminder keys and updates form from response settings', async () => {
@@ -208,6 +244,7 @@ describe('Shopify.vue', () => {
           Switch: true,
           Select: true,
           Icon: true,
+          ShopifyTemplateMapping: true,
         },
         mocks: {
           $t: key => key,
@@ -254,6 +291,155 @@ describe('Shopify.vue', () => {
     expect(wrapper.vm.delayHours).toBe(2);
   });
 
+  it('saves order updates settings and updates form from response', async () => {
+    ShopifyAPI.get.mockResolvedValue({
+      data: {
+        connected: true,
+        reference_id: 'test-store.myshopify.com',
+        settings: {
+          order_updates: {
+            enabled: false,
+            inbox_id: null,
+            milestones: {},
+          },
+        },
+      },
+    });
+
+    ShopifyAPI.update.mockResolvedValue({
+      data: {
+        connected: true,
+        reference_id: 'test-store.myshopify.com',
+        settings: {
+          order_updates: {
+            enabled: true,
+            inbox_id: 10,
+            milestones: {
+              confirmed: {
+                enabled: true,
+                template: {
+                  template_name: 'order_confirmed',
+                  language: 'en',
+                  variables: { 'body.1': 'first_name' },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    const wrapper = mount(Shopify, {
+      global: {
+        stubs: {
+          SettingsLayout: {
+            template: '<div><slot name="header"/><slot name="body"/></div>',
+          },
+          BaseSettingsHeader: true,
+          Dialog: true,
+          Button: true,
+          Input: true,
+          Switch: true,
+          Select: true,
+          Icon: true,
+          ShopifyTemplateMapping: true,
+        },
+        mocks: {
+          $t: key => key,
+        },
+      },
+    });
+
+    await flushPromises();
+
+    wrapper.vm.orderUpdatesEnabled = true;
+    wrapper.vm.orderUpdatesInboxId = 10;
+    wrapper.vm.milestones.confirmed = {
+      enabled: true,
+      template: {
+        template_name: 'order_confirmed',
+        language: 'en',
+        variables: { 'body.1': 'first_name' },
+      },
+    };
+
+    await wrapper.vm.handleSaveOrderUpdates();
+    await flushPromises();
+
+    expect(ShopifyAPI.update).toHaveBeenCalledWith({
+      order_updates: {
+        enabled: true,
+        inbox_id: 10,
+        milestones: {
+          confirmed: {
+            enabled: true,
+            template: {
+              template_name: 'order_confirmed',
+              language: 'en',
+              variables: { 'body.1': 'first_name' },
+            },
+          },
+          shipped: { enabled: false, template: null },
+          out_for_delivery: { enabled: false, template: null },
+          delivered: { enabled: false, template: null },
+        },
+      },
+    });
+
+    expect(wrapper.vm.orderUpdatesEnabled).toBe(true);
+    expect(wrapper.vm.orderUpdatesInboxId).toBe(10);
+    expect(wrapper.vm.milestones.confirmed.enabled).toBe(true);
+  });
+
+  it('calls registerWebhooks and handles result', async () => {
+    ShopifyAPI.get.mockResolvedValue({
+      data: {
+        connected: true,
+        reference_id: 'test-store.myshopify.com',
+        settings: {},
+      },
+    });
+
+    ShopifyAPI.registerWebhooks.mockResolvedValue({
+      data: {
+        success: true,
+        results: { ORDERS_CREATE: 'created' },
+      },
+    });
+
+    const wrapper = mount(Shopify, {
+      global: {
+        stubs: {
+          SettingsLayout: {
+            template: '<div><slot name="header"/><slot name="body"/></div>',
+          },
+          BaseSettingsHeader: true,
+          Dialog: true,
+          Button: true,
+          Input: true,
+          Switch: true,
+          Select: true,
+          Icon: true,
+          ShopifyTemplateMapping: true,
+        },
+        mocks: {
+          $t: key => key,
+        },
+      },
+    });
+
+    await flushPromises();
+
+    await wrapper.vm.handleRegisterWebhooks();
+    await flushPromises();
+
+    expect(ShopifyAPI.registerWebhooks).toHaveBeenCalled();
+    expect(useAlert).toHaveBeenCalledWith(
+      'INTEGRATION_SETTINGS.SHOPIFY.ORDER_UPDATES.REGISTER_WEBHOOKS.SUCCESS'
+    );
+    expect(wrapper.vm.webhookRegistrationResult.success).toBe(true);
+  });
+
   it('displays the API error message when save fails with 422 { error: message }', async () => {
     ShopifyAPI.get.mockResolvedValue({
       data: {
@@ -283,6 +469,7 @@ describe('Shopify.vue', () => {
           Switch: true,
           Select: true,
           Icon: true,
+          ShopifyTemplateMapping: true,
         },
         mocks: {
           $t: key => key,

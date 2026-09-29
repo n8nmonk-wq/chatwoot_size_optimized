@@ -69,6 +69,66 @@
         "SAVE_BUTTON": "Save settings",
         "SAVE_SUCCESS": "Shopify reminder settings saved successfully.",
         "SAVE_ERROR": "Failed to save Shopify reminder settings."
+      },
+      "ORDER_UPDATES": {
+        "TITLE": "Order updates",
+        "DESCRIPTION": "Send automated WhatsApp utility messages for Shopify order and delivery milestones.",
+        "META_NOTICE": "Switch off Meta's or Shopify's own WhatsApp order messages before turning this on to avoid duplicate customer notifications.",
+        "SHARED_SETTINGS_NOTICE": "Test phone numbers and store domain configured in Abandoned Cart Reminders above also apply to Order updates.",
+        "ENABLE": "Enable order updates",
+        "INBOX": {
+          "LABEL": "WhatsApp inbox",
+          "PLACEHOLDER": "Select a WhatsApp inbox",
+          "HELP": "The WhatsApp inbox used to send order milestone messages."
+        },
+        "REGISTER_WEBHOOKS": {
+          "BUTTON": "Register order webhooks",
+          "LOADING": "Registering webhooks...",
+          "SUCCESS": "Order webhooks registered successfully.",
+          "ERROR": "Failed to register webhooks: {error}"
+        },
+        "SAVE_BUTTON": "Save order update settings",
+        "SAVE_SUCCESS": "Shopify order update settings saved successfully.",
+        "SAVE_ERROR": "Failed to save order update settings.",
+        "MILESTONES": {
+          "CONFIRMED": {
+            "TITLE": "Order confirmed",
+            "DESCRIPTION": "Sent immediately when an order is created (both prepaid and COD)."
+          },
+          "SHIPPED": {
+            "TITLE": "Order shipped",
+            "DESCRIPTION": "Sent when a fulfillment is created in Shopify."
+          },
+          "OUT_FOR_DELIVERY": {
+            "TITLE": "Out for delivery",
+            "DESCRIPTION": "Sent when the carrier reports the shipment is out for delivery."
+          },
+          "DELIVERED": {
+            "TITLE": "Order delivered",
+            "DESCRIPTION": "Sent when the carrier reports the shipment has been delivered."
+          }
+        }
+      },
+      "TEMPLATE_MAPPING": {
+        "TEMPLATE_LABEL": "WhatsApp template",
+        "TEMPLATE_PLACEHOLDER": "Select an approved template",
+        "MEDIA_NOT_SUPPORTED": "Media header not supported",
+        "VARIABLES_TITLE": "Template variable mappings",
+        "SELECT_SOURCE": "Select data source",
+        "STATIC_PLACEHOLDER": "Enter custom text"
+      },
+      "SOURCES": {
+        "FIRST_NAME": "Customer first name",
+        "FULL_NAME": "Customer full name",
+        "ORDER_NAME": "Order number (e.g. #1001)",
+        "ITEM_SUMMARY": "Item summary (e.g. T-Shirt and 2 more)",
+        "TOTAL": "Total amount (e.g. ₹1,299.00)",
+        "TRACKING_NUMBER": "Tracking number",
+        "COURIER": "Courier / Delivery partner",
+        "STORE_NAME": "Store name",
+        "ORDER_STATUS_URL_SUFFIX": "Order status URL suffix (button only)",
+        "CHECKOUT_URL_SUFFIX": "Checkout URL suffix (button only)",
+        "STATIC": "Custom text"
       }
     },
     "HEADER": "Integrations",

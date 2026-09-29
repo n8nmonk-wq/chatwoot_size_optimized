@@ -277,6 +277,7 @@ RSpec.describe 'Shopify Integration API', type: :request do
           expect(body['expires_at']).to eq('2026-10-01T00:00:00Z')
           expect(body.dig('settings', 'abandoned_cart', 'enabled')).to be true
           expect(body.dig('settings', 'abandoned_cart', 'template_name')).to eq('abandoned_cart_reminder')
+          expect(body.dig('settings', 'order_updates')).to eq({})
           expect(body).not_to have_key('access_token')
           expect(body).not_to have_key('refresh_token')
           expect(body).not_to have_key('scope')
@@ -306,12 +307,51 @@ RSpec.describe 'Shopify Integration API', type: :request do
   end
 
   describe 'PATCH /api/v1/accounts/:account_id/integrations/shopify' do
+    let(:sample_templates) do
+      [
+        {
+          'name' => 'order_confirmed_template',
+          'status' => 'APPROVED',
+          'language' => 'en',
+          'components' => [
+            { 'type' => 'HEADER', 'format' => 'TEXT', 'text' => 'Hi {{1}}' },
+            { 'type' => 'BODY', 'text' => 'Your order {{1}} of {{2}} is confirmed.' },
+            { 'type' => 'BUTTONS', 'buttons' => [{ 'type' => 'URL', 'url' => 'https://example.com/{{1}}' }] }
+          ]
+        },
+        {
+          'name' => 'cart_reminder_template',
+          'status' => 'APPROVED',
+          'language' => 'en',
+          'components' => [
+            { 'type' => 'BODY', 'text' => 'Hi {{1}}, items: {{2}}, total: {{3}}' },
+            { 'type' => 'BUTTONS', 'buttons' => [{ 'type' => 'URL', 'url' => 'https://example.com/{{1}}' }] }
+          ]
+        },
+        {
+          'name' => 'pending_template',
+          'status' => 'PENDING',
+          'language' => 'en',
+          'components' => [{ 'type' => 'BODY', 'text' => 'Pending' }]
+        },
+        {
+          'name' => 'media_template',
+          'status' => 'APPROVED',
+          'language' => 'en',
+          'components' => [
+            { 'type' => 'HEADER', 'format' => 'IMAGE' },
+            { 'type' => 'BODY', 'text' => 'Image' }
+          ]
+        }
+      ]
+    end
     let(:whatsapp_channel) do
       create(:channel_whatsapp,
              account: account,
              provider: 'whatsapp_cloud',
              sync_templates: false,
-             validate_provider_config: false)
+             validate_provider_config: false,
+             message_templates: sample_templates)
     end
     let(:whatsapp_inbox) { whatsapp_channel.inbox }
     let(:email_channel) { create(:channel_email, account: account) }
@@ -419,6 +459,292 @@ RSpec.describe 'Shopify Integration API', type: :request do
         expect(response.parsed_body['error']).to eq('Invalid store domain')
       end
 
+      it 'merges order_updates settings without wiping abandoned_cart or tokens' do
+        patch "/api/v1/accounts/#{account.id}/integrations/shopify",
+              params: {
+                order_updates: {
+                  enabled: true,
+                  inbox_id: whatsapp_inbox.id,
+                  milestones: {
+                    confirmed: {
+                      enabled: true,
+                      template: {
+                        template_name: 'order_confirmed_template',
+                        language: 'en',
+                        variables: {
+                          'header.1' => 'first_name',
+                          'body.1' => 'order_name',
+                          'body.2' => 'total',
+                          'button.0' => 'order_status_url_suffix'
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+              headers: admin.create_new_auth_token,
+              as: :json
+
+        expect(response).to have_http_status(:ok)
+        hook.reload
+        aggregate_failures do
+          expect(hook.settings['refresh_token']).to eq('secret_refresh_123')
+          expect(hook.settings['abandoned_cart']['template_name']).to eq('old_template')
+
+          order_settings = hook.settings['order_updates']
+          expect(order_settings['enabled']).to be true
+          expect(order_settings['inbox_id']).to eq(whatsapp_inbox.id)
+          expect(order_settings.dig('milestones', 'confirmed', 'enabled')).to be true
+          expect(order_settings.dig('milestones', 'confirmed', 'template', 'template_name')).to eq('order_confirmed_template')
+          expect(order_settings.dig('milestones', 'confirmed', 'template', 'variables', 'body.1')).to eq('order_name')
+        end
+      end
+
+      it 'returns 422 if order_updates is enabled but inbox_id is missing' do
+        patch "/api/v1/accounts/#{account.id}/integrations/shopify",
+              params: { order_updates: { enabled: true } },
+              headers: admin.create_new_auth_token,
+              as: :json
+
+        expect(response).to have_http_status(:unprocessable_entity)
+        expect(response.parsed_body['error']).to eq('WhatsApp inbox is required when order updates are enabled')
+      end
+
+      it 'returns 422 if order_updates inbox is not a WhatsApp inbox' do
+        patch "/api/v1/accounts/#{account.id}/integrations/shopify",
+              params: { order_updates: { inbox_id: email_inbox.id } },
+              headers: admin.create_new_auth_token,
+              as: :json
+
+        expect(response).to have_http_status(:unprocessable_entity)
+        expect(response.parsed_body['error']).to eq('Invalid WhatsApp inbox')
+      end
+
+      it 'returns 422 if milestone kind is invalid' do
+        patch "/api/v1/accounts/#{account.id}/integrations/shopify",
+              params: {
+                order_updates: {
+                  inbox_id: whatsapp_inbox.id,
+                  milestones: { cancelled: { enabled: true } }
+                }
+              },
+              headers: admin.create_new_auth_token,
+              as: :json
+
+        expect(response).to have_http_status(:unprocessable_entity)
+        expect(response.parsed_body['error']).to include('Invalid milestone kind')
+      end
+
+      it 'returns 422 if enabled milestone has no template' do
+        patch "/api/v1/accounts/#{account.id}/integrations/shopify",
+              params: {
+                order_updates: {
+                  inbox_id: whatsapp_inbox.id,
+                  milestones: { confirmed: { enabled: true } }
+                }
+              },
+              headers: admin.create_new_auth_token,
+              as: :json
+
+        expect(response).to have_http_status(:unprocessable_entity)
+        expect(response.parsed_body['error']).to eq("Template is required for enabled milestone 'confirmed'")
+      end
+
+      it 'returns 422 if milestone template is not found in inbox' do
+        patch "/api/v1/accounts/#{account.id}/integrations/shopify",
+              params: {
+                order_updates: {
+                  inbox_id: whatsapp_inbox.id,
+                  milestones: {
+                    confirmed: {
+                      enabled: true,
+                      template: { template_name: 'non_existent_template', language: 'en', variables: {} }
+                    }
+                  }
+                }
+              },
+              headers: admin.create_new_auth_token,
+              as: :json
+
+        expect(response).to have_http_status(:unprocessable_entity)
+        expect(response.parsed_body['error']).to eq("Template 'non_existent_template' not found in chosen inbox")
+      end
+
+      it 'returns 422 if milestone template is not approved' do
+        patch "/api/v1/accounts/#{account.id}/integrations/shopify",
+              params: {
+                order_updates: {
+                  inbox_id: whatsapp_inbox.id,
+                  milestones: {
+                    confirmed: {
+                      enabled: true,
+                      template: { template_name: 'pending_template', language: 'en', variables: {} }
+                    }
+                  }
+                }
+              },
+              headers: admin.create_new_auth_token,
+              as: :json
+
+        expect(response).to have_http_status(:unprocessable_entity)
+        expect(response.parsed_body['error']).to eq('Template is not approved')
+      end
+
+      it 'returns 422 if milestone template has media header' do
+        patch "/api/v1/accounts/#{account.id}/integrations/shopify",
+              params: {
+                order_updates: {
+                  inbox_id: whatsapp_inbox.id,
+                  milestones: {
+                    confirmed: {
+                      enabled: true,
+                      template: { template_name: 'media_template', language: 'en', variables: {} }
+                    }
+                  }
+                }
+              },
+              headers: admin.create_new_auth_token,
+              as: :json
+
+        expect(response).to have_http_status(:unprocessable_entity)
+        expect(response.parsed_body['error']).to eq('Media header templates are not supported')
+      end
+
+      it 'returns 422 if template has unmapped variables' do
+        patch "/api/v1/accounts/#{account.id}/integrations/shopify",
+              params: {
+                order_updates: {
+                  inbox_id: whatsapp_inbox.id,
+                  milestones: {
+                    confirmed: {
+                      enabled: true,
+                      template: {
+                        template_name: 'order_confirmed_template',
+                        language: 'en',
+                        variables: { 'header.1' => 'first_name', 'body.1' => 'order_name' }
+                      }
+                    }
+                  }
+                }
+              },
+              headers: admin.create_new_auth_token,
+              as: :json
+
+        expect(response).to have_http_status(:unprocessable_entity)
+        expect(response.parsed_body['error']).to include('Missing template variable mappings')
+      end
+
+      it 'returns 422 if source is disallowed for milestone' do
+        patch "/api/v1/accounts/#{account.id}/integrations/shopify",
+              params: {
+                order_updates: {
+                  inbox_id: whatsapp_inbox.id,
+                  milestones: {
+                    confirmed: {
+                      enabled: true,
+                      template: {
+                        template_name: 'order_confirmed_template',
+                        language: 'en',
+                        variables: {
+                          'header.1' => 'first_name',
+                          'body.1' => 'tracking_number',
+                          'body.2' => 'total',
+                          'button.0' => 'order_status_url_suffix'
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+              headers: admin.create_new_auth_token,
+              as: :json
+
+        expect(response).to have_http_status(:unprocessable_entity)
+        expect(response.parsed_body['error']).to eq("Source 'tracking_number' is not allowed for confirmed")
+      end
+
+      it 'returns 422 if URL suffix source is used in body' do
+        patch "/api/v1/accounts/#{account.id}/integrations/shopify",
+              params: {
+                order_updates: {
+                  inbox_id: whatsapp_inbox.id,
+                  milestones: {
+                    confirmed: {
+                      enabled: true,
+                      template: {
+                        template_name: 'order_confirmed_template',
+                        language: 'en',
+                        variables: {
+                          'header.1' => 'first_name',
+                          'body.1' => 'order_status_url_suffix',
+                          'body.2' => 'total',
+                          'button.0' => 'order_status_url_suffix'
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+              headers: admin.create_new_auth_token,
+              as: :json
+
+        expect(response).to have_http_status(:unprocessable_entity)
+        expect(response.parsed_body['error']).to eq('URL suffix sources can only be used in URL button variables')
+      end
+
+      it 'returns 422 if static text is used in button slot' do
+        patch "/api/v1/accounts/#{account.id}/integrations/shopify",
+              params: {
+                order_updates: {
+                  inbox_id: whatsapp_inbox.id,
+                  milestones: {
+                    confirmed: {
+                      enabled: true,
+                      template: {
+                        template_name: 'order_confirmed_template',
+                        language: 'en',
+                        variables: {
+                          'header.1' => 'first_name',
+                          'body.1' => 'order_name',
+                          'body.2' => 'total',
+                          'button.0' => { 'static' => 'https://example.com' }
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+              headers: admin.create_new_auth_token,
+              as: :json
+
+        expect(response).to have_http_status(:unprocessable_entity)
+        expect(response.parsed_body['error']).to eq('Static text can only be used in header or body variables')
+      end
+
+      it 'allows saving custom template mapping for abandoned_cart' do
+        patch "/api/v1/accounts/#{account.id}/integrations/shopify",
+              params: {
+                abandoned_cart: {
+                  inbox_id: whatsapp_inbox.id,
+                  template: {
+                    template_name: 'cart_reminder_template',
+                    language: 'en',
+                    variables: {
+                      'body.1' => 'first_name',
+                      'body.2' => 'item_summary',
+                      'body.3' => 'total',
+                      'button.0' => 'checkout_url_suffix'
+                    }
+                  }
+                }
+              },
+              headers: admin.create_new_auth_token,
+              as: :json
+
+        expect(response).to have_http_status(:ok)
+        expect(hook.reload.settings.dig('abandoned_cart', 'template', 'template_name')).to eq('cart_reminder_template')
+      end
+
       it 'returns 404 if hook does not exist' do
         hook.destroy!
 
@@ -448,6 +774,76 @@ RSpec.describe 'Shopify Integration API', type: :request do
               params: { abandoned_cart: { enabled: true } },
               headers: client.create_new_auth_token,
               as: :json
+
+        expect(response).to have_http_status(:unauthorized)
+      end
+    end
+  end
+
+  describe 'POST /api/v1/accounts/:account_id/integrations/shopify/register_webhooks' do
+    let!(:hook) { create(:integrations_hook, :shopify, account: account) }
+    let(:registration_service) { instance_double(Shopify::WebhookRegistrationService) }
+
+    context 'when it is an administrator' do
+      before do
+        allow(Shopify::WebhookRegistrationService).to receive(:new).with(hook).and_return(registration_service)
+      end
+
+      it 'calls WebhookRegistrationService and returns 200 with results' do
+        allow(registration_service).to receive(:perform).and_return(
+          success: true,
+          results: { 'ORDERS_CREATE' => 'created', 'FULFILLMENTS_CREATE' => 'already_registered' }
+        )
+
+        post "/api/v1/accounts/#{account.id}/integrations/shopify/register_webhooks",
+             headers: admin.create_new_auth_token,
+             as: :json
+
+        expect(response).to have_http_status(:ok)
+        expect(response.parsed_body['success']).to be true
+        expect(response.parsed_body['results']['ORDERS_CREATE']).to eq('created')
+      end
+
+      it 'returns 422 with error message when registration fails' do
+        allow(registration_service).to receive(:perform).and_return(
+          success: false,
+          error: 'Protected customer data access required'
+        )
+
+        post "/api/v1/accounts/#{account.id}/integrations/shopify/register_webhooks",
+             headers: admin.create_new_auth_token,
+             as: :json
+
+        expect(response).to have_http_status(:unprocessable_entity)
+        expect(response.parsed_body['error']).to eq('Protected customer data access required')
+      end
+
+      it 'returns 404 if hook does not exist' do
+        hook.destroy!
+
+        post "/api/v1/accounts/#{account.id}/integrations/shopify/register_webhooks",
+             headers: admin.create_new_auth_token,
+             as: :json
+
+        expect(response).to have_http_status(:not_found)
+      end
+    end
+
+    context 'when it is an agent' do
+      it 'returns unauthorized' do
+        post "/api/v1/accounts/#{account.id}/integrations/shopify/register_webhooks",
+             headers: agent.create_new_auth_token,
+             as: :json
+
+        expect(response).to have_http_status(:unauthorized)
+      end
+    end
+
+    context 'when it is a client' do
+      it 'returns unauthorized' do
+        post "/api/v1/accounts/#{account.id}/integrations/shopify/register_webhooks",
+             headers: client.create_new_auth_token,
+             as: :json
 
         expect(response).to have_http_status(:unauthorized)
       end

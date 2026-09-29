@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 class Shopify::AbandonedCartPayloadBuilder
-  CURRENCY_SYMBOLS = { 'INR' => '₹', 'USD' => '$', 'EUR' => '€', 'GBP' => '£', 'CAD' => 'CA$', 'AUD' => 'A$' }.freeze
+  include Shopify::SharedHelper
 
   def initialize(hook:, checkout:, channel:, button_suffix:)
     @hook = hook
@@ -11,6 +11,45 @@ class Shopify::AbandonedCartPayloadBuilder
   end
 
   def build
+    if custom_mapping.present?
+      build_from_custom_mapping
+    else
+      build_legacy
+    end
+  end
+
+  private
+
+  def custom_mapping
+    settings['template']
+  end
+
+  def build_from_custom_mapping
+    context = { checkout: @checkout, hook: @hook, store_domain: store_domain, milestone: 'abandoned_cart' }
+    status, processed_params = build_template_processed_params(custom_mapping, context)
+    return build_legacy if status == :error
+
+    template_params = {
+      'name' => custom_mapping['template_name'],
+      'language' => custom_mapping['language'],
+      'processed_params' => processed_params
+    }
+    processor = Whatsapp::TemplateProcessorService.new(channel: @channel, template_params: template_params)
+    name, namespace, lang_code, processed_parameters = processor.call
+
+    {
+      name: name.presence || custom_mapping['template_name'],
+      namespace: namespace,
+      lang_code: lang_code.presence || custom_mapping['language'],
+      parameters: processed_parameters.presence || []
+    }
+  end
+
+  def store_domain
+    settings['store_domain'].presence || @hook.reference_id
+  end
+
+  def build_legacy
     template_params = {
       'name' => template_name,
       'language' => template_language,
@@ -31,8 +70,6 @@ class Shopify::AbandonedCartPayloadBuilder
     }
   end
 
-  private
-
   def settings
     @hook.settings&.dig('abandoned_cart') || {}
   end
@@ -46,31 +83,23 @@ class Shopify::AbandonedCartPayloadBuilder
   end
 
   def first_name
-    @checkout.dig('customer', 'firstName').presence ||
-      @checkout.dig('shippingAddress', 'firstName').presence ||
-      @checkout.dig('billingAddress', 'firstName').presence ||
-      'there'
+    raw = @checkout.dig('customer', 'firstName').presence ||
+          @checkout.dig('shippingAddress', 'firstName').presence ||
+          @checkout.dig('billingAddress', 'firstName').presence
+    format_first_name(raw)
   end
 
   def product_titles
     nodes = @checkout.dig('lineItems', 'nodes') || []
     titles = nodes.filter_map { |item| item['title'].presence }
-    return 'your items' if titles.empty?
-    return titles.first if titles.length == 1
-
-    remaining = titles.length - 1
-    suffix = remaining == 1 ? '1 more item' : "#{remaining} more items"
-    "#{titles.first} and #{suffix}"
+    format_product_titles(titles)
   end
 
   def total_formatted
     total_price_set = @checkout['totalPriceSet']
     amount = total_price_set&.dig('shopMoney', 'amount')
     currency_code = total_price_set&.dig('shopMoney', 'currencyCode')
-    return '' if amount.blank?
-
-    symbol = CURRENCY_SYMBOLS[currency_code] || "#{currency_code} "
-    ActiveSupport::NumberHelper.number_to_currency(amount, unit: symbol, format: '%u%n')
+    format_total_price(amount, currency_code)
   end
 
   def default_components

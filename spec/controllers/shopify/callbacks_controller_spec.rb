@@ -47,6 +47,7 @@ RSpec.describe Shopify::CallbacksController, type: :request do
     context 'when successful' do
       include_context 'with stubbed account'
       before do
+        allow(Shopify::WebhookRegistrationService).to receive(:perform)
         allow(auth_code_strategy).to receive(:get_token).and_return(token_response)
         stub_request(:post, "https://#{shop}/admin/oauth/access_token")
           .to_return(
@@ -56,7 +57,13 @@ RSpec.describe Shopify::CallbacksController, type: :request do
           )
       end
 
-      it 'creates a new integration hook' do
+      it 'registers webhooks after hook creation' do
+        expect(Shopify::WebhookRegistrationService).to receive(:perform).with(instance_of(Integrations::Hook))
+
+        get shopify_callback_path, params: { code: code, state: state, shop: shop }
+      end
+
+      it 'creates a new integration hook and redirects' do
         expect do
           get shopify_callback_path, params: { code: code, state: state, shop: shop }
         end.to change(Integrations::Hook, :count).by(1)
@@ -66,9 +73,15 @@ RSpec.describe Shopify::CallbacksController, type: :request do
         expect(hook.app_id).to eq('shopify')
         expect(hook.status).to eq('enabled')
         expect(hook.reference_id).to eq(shop)
-        expect(hook.settings).to eq(
-          'scope' => 'read_products,write_products'
-        )
+        expect(hook.settings).to eq('scope' => 'read_products,write_products')
+        expect(response).to redirect_to(shopify_redirect_uri)
+      end
+
+      it 'still succeeds and redirects even if webhook registration fails' do
+        allow(Shopify::WebhookRegistrationService).to receive(:perform).and_raise(StandardError, 'Shopify timeout')
+
+        get shopify_callback_path, params: { code: code, state: state, shop: shop }
+
         expect(response).to redirect_to(shopify_redirect_uri)
       end
 

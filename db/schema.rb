@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.2].define(version: 2026_09_28_190000) do
+ActiveRecord::Schema[7.2].define(version: 2026_09_29_160000) do
   # These extensions should be enabled to support this database
   enable_extension "pg_stat_statements"
   enable_extension "pg_trgm"
@@ -1434,6 +1434,19 @@ ActiveRecord::Schema[7.2].define(version: 2026_09_28_190000) do
     t.index ["account_id"], name: "index_shopify_abandoned_checkout_reminders_on_account_id"
   end
 
+  create_table "shopify_order_notifications", force: :cascade do |t|
+    t.bigint "account_id", null: false
+    t.string "order_id", null: false
+    t.string "kind", null: false
+    t.string "status", null: false
+    t.string "reason"
+    t.datetime "sent_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["account_id", "order_id", "kind"], name: "idx_shopify_order_notifications_uniqueness", unique: true
+    t.index ["account_id"], name: "index_shopify_order_notifications_on_account_id"
+  end
+
   create_table "sla_events", force: :cascade do |t|
     t.bigint "applied_sla_id", null: false
     t.bigint "conversation_id", null: false
@@ -1612,6 +1625,7 @@ ActiveRecord::Schema[7.2].define(version: 2026_09_28_190000) do
   add_foreign_key "campaign_recipients", "inboxes", on_delete: :cascade
   add_foreign_key "inboxes", "portals"
   add_foreign_key "shopify_abandoned_checkout_reminders", "accounts", on_delete: :cascade
+  add_foreign_key "shopify_order_notifications", "accounts", on_delete: :cascade
   add_foreign_key "user_sessions", "users"
   create_trigger("accounts_after_insert_row_tr", :generated => true, :compatibility => 1).
       on("accounts").
