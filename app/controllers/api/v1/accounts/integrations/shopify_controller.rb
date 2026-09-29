@@ -88,7 +88,7 @@ class Api::V1::Accounts::Integrations::ShopifyController < Api::V1::Accounts::In
     ShopifyAPI::Context.setup(
       api_key: client_id,
       api_secret_key: client_secret,
-      api_version: '2025-01'.freeze,
+      api_version: API_VERSION,
       scope: REQUIRED_SCOPES.join(','),
       is_embedded: true,
       is_private: false

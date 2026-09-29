@@ -1,4 +1,5 @@
 module Shopify::IntegrationHelper
+  API_VERSION = '2025-01'.freeze
   REQUIRED_SCOPES = %w[read_customers read_orders read_fulfillments].freeze
 
   # Generates a signed JWT token for Shopify integration

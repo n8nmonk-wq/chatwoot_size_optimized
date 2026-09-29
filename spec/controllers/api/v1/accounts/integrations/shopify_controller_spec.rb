@@ -137,6 +137,24 @@ RSpec.describe 'Shopify Integration API', type: :request do
         expect(response.parsed_body['orders'][0]['id']).to eq('456')
       end
 
+      it 'initializes Shopify context with supported API_VERSION' do
+        expect(ShopifyAPI::Context).to receive(:setup).with(
+          api_key: 'test_client_id',
+          api_secret_key: 'test_client_secret',
+          api_version: Shopify::IntegrationHelper::API_VERSION,
+          scope: Shopify::IntegrationHelper::REQUIRED_SCOPES.join(','),
+          is_embedded: true,
+          is_private: false
+        ).and_call_original
+
+        get "/api/v1/accounts/#{account.id}/integrations/shopify/orders",
+            params: { contact_id: contact.id },
+            headers: agent.create_new_auth_token,
+            as: :json
+
+        expect(response).to have_http_status(:ok)
+      end
+
       it 'returns error when contact has no email or phone' do
         contact_without_info = create(:contact, account: account)
 
