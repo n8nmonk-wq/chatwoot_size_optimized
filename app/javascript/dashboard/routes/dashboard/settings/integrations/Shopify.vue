@@ -99,7 +99,7 @@ const populateFormSettings = data => {
     return;
   }
 
-  const cart = data.abandoned_cart || {};
+  const cart = data.settings?.abandoned_cart || data.abandoned_cart || {};
   enabled.value = Boolean(cart.enabled);
   inboxId.value = cart.inbox_id ?? '';
   templateName.value = cart.template_name || '';
@@ -143,7 +143,9 @@ const handleConnectSubmit = async () => {
     }
   } catch (error) {
     storeUrlError.value =
-      error?.response?.data?.message || t('INTEGRATION_SETTINGS.SHOPIFY.ERROR');
+      error?.response?.data?.error ||
+      error?.response?.data?.message ||
+      t('INTEGRATION_SETTINGS.SHOPIFY.ERROR');
   } finally {
     isSubmittingStoreUrl.value = false;
   }
@@ -190,6 +192,7 @@ const handleSaveSettings = async () => {
     useAlert(t('INTEGRATION_SETTINGS.SHOPIFY.REMINDERS.SAVE_SUCCESS'));
   } catch (error) {
     const errorMsg =
+      error?.response?.data?.error ||
       error?.response?.data?.message ||
       t('INTEGRATION_SETTINGS.SHOPIFY.REMINDERS.SAVE_ERROR');
     useAlert(errorMsg);

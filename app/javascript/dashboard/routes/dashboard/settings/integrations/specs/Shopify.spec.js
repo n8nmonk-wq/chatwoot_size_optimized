@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import Shopify from '../Shopify.vue';
 import ShopifyAPI from 'dashboard/api/integrations/shopify';
 import shopifyRoutes from '../shopify.routes';
+import { useAlert } from 'dashboard/composables';
 
 vi.mock('dashboard/api/integrations/shopify', () => ({
   default: {
@@ -96,20 +97,23 @@ describe('Shopify.vue', () => {
     );
   });
 
-  it('renders connected state and populates reminder settings', async () => {
+  it('renders connected state and populates reminder settings from real API response shape', async () => {
     ShopifyAPI.get.mockResolvedValue({
       data: {
         connected: true,
         reference_id: 'test-store.myshopify.com',
-        abandoned_cart: {
-          enabled: true,
-          inbox_id: 10,
-          template_name: 'reminder_tmpl',
-          language: 'en',
-          store_domain: 'test-store.com',
-          require_marketing_consent: true,
-          test_phones: ['+919876543210'],
-          delay_hours: 2,
+        expires_at: '2026-10-01T00:00:00Z',
+        settings: {
+          abandoned_cart: {
+            enabled: true,
+            inbox_id: 10,
+            template_name: 'reminder_tmpl',
+            language: 'en',
+            store_domain: 'test-store.com',
+            require_marketing_consent: true,
+            test_phones: ['+919876543210'],
+            delay_hours: 2,
+          },
         },
       },
     });
@@ -140,22 +144,33 @@ describe('Shopify.vue', () => {
     expect(wrapper.text()).toContain(
       'INTEGRATION_SETTINGS.SHOPIFY.REMINDERS.TEST_MODE_NOTICE'
     );
+    expect(wrapper.vm.enabled).toBe(true);
+    expect(wrapper.vm.inboxId).toBe(10);
+    expect(wrapper.vm.templateName).toBe('reminder_tmpl');
+    expect(wrapper.vm.language).toBe('en');
+    expect(wrapper.vm.storeDomain).toBe('test-store.com');
+    expect(wrapper.vm.requireMarketingConsent).toBe(true);
+    expect(wrapper.vm.testPhones).toBe('+919876543210');
+    expect(wrapper.vm.delayHours).toBe(2);
   });
 
-  it('saves only the permitted reminder keys with parsed test phones', async () => {
+  it('saves only the permitted reminder keys and updates form from response settings', async () => {
     ShopifyAPI.get.mockResolvedValue({
       data: {
         connected: true,
         reference_id: 'test-store.myshopify.com',
-        abandoned_cart: {
-          enabled: false,
-          inbox_id: null,
-          template_name: '',
-          language: 'en',
-          store_domain: '',
-          require_marketing_consent: false,
-          test_phones: [],
-          delay_hours: 24,
+        expires_at: '2026-10-01T00:00:00Z',
+        settings: {
+          abandoned_cart: {
+            enabled: false,
+            inbox_id: null,
+            template_name: '',
+            language: 'en',
+            store_domain: '',
+            require_marketing_consent: false,
+            test_phones: [],
+            delay_hours: 24,
+          },
         },
       },
     });
@@ -164,15 +179,18 @@ describe('Shopify.vue', () => {
       data: {
         connected: true,
         reference_id: 'test-store.myshopify.com',
-        abandoned_cart: {
-          enabled: true,
-          inbox_id: 10,
-          template_name: 'new_reminder',
-          language: 'en',
-          store_domain: 'biotane.in',
-          require_marketing_consent: true,
-          test_phones: ['919876543210', '919812143700'],
-          delay_hours: 2,
+        expires_at: '2026-10-01T00:00:00Z',
+        settings: {
+          abandoned_cart: {
+            enabled: true,
+            inbox_id: 10,
+            template_name: 'new_reminder',
+            language: 'en',
+            store_domain: 'biotane.in',
+            require_marketing_consent: true,
+            test_phones: ['919876543210', '919812143700'],
+            delay_hours: 2,
+          },
         },
       },
     });
@@ -224,5 +242,59 @@ describe('Shopify.vue', () => {
         delay_hours: 2,
       },
     });
+
+    // Verify form preserves values returned by real update response
+    expect(wrapper.vm.enabled).toBe(true);
+    expect(wrapper.vm.inboxId).toBe(10);
+    expect(wrapper.vm.templateName).toBe('new_reminder');
+    expect(wrapper.vm.language).toBe('en');
+    expect(wrapper.vm.storeDomain).toBe('biotane.in');
+    expect(wrapper.vm.requireMarketingConsent).toBe(true);
+    expect(wrapper.vm.testPhones).toBe('919876543210, 919812143700');
+    expect(wrapper.vm.delayHours).toBe(2);
+  });
+
+  it('displays the API error message when save fails with 422 { error: message }', async () => {
+    ShopifyAPI.get.mockResolvedValue({
+      data: {
+        connected: true,
+        reference_id: 'test-store.myshopify.com',
+        settings: { abandoned_cart: {} },
+      },
+    });
+
+    ShopifyAPI.update.mockRejectedValue({
+      response: {
+        status: 422,
+        data: { error: 'Invalid store domain' },
+      },
+    });
+
+    const wrapper = mount(Shopify, {
+      global: {
+        stubs: {
+          SettingsLayout: {
+            template: '<div><slot name="header"/><slot name="body"/></div>',
+          },
+          BaseSettingsHeader: true,
+          Dialog: true,
+          Button: true,
+          Input: true,
+          Switch: true,
+          Select: true,
+          Icon: true,
+        },
+        mocks: {
+          $t: key => key,
+        },
+      },
+    });
+
+    await flushPromises();
+
+    await wrapper.vm.handleSaveSettings();
+    await flushPromises();
+
+    expect(useAlert).toHaveBeenCalledWith('Invalid store domain');
   });
 });
