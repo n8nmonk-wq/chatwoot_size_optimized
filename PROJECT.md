@@ -75,13 +75,13 @@ MMOChat automatically checks for abandoned Shopify checkouts between 24 and 72 h
 #### Template Shape & Parameter Order
 - **Meta Template**: `abandoned_cart_reminder` (Marketing category) with a dynamic URL button.
 - **Body {{1}}**: Customer's first name (falls back to `'there'`).
-- **Body {{2}}**: Abandoned product titles (up to 3 items, joined with comma; falls back to `'your items'`).
+- **Body {{2}}**: First product title, plus `and N more item(s)` when the cart has more than one (falls back to `'your items'`).
 - **Body {{3}}**: Cart total with currency (e.g. `'₹1,299.00'`).
 - **Button Parameter**: Dynamic suffix appended to `https://<store domain>/` (e.g. `checkouts/cn/c1-12345/recovery?key=...`). If checkout URL host does not match the configured store domain, the send is aborted and recorded as `failed` with `checkout_url_host_mismatch`.
 
 #### Enable & Configure via CLI (`rails runner`)
 ```bash
-bundle exec rails runner "h = Account.find(1).hooks.find_by!(app_id: 'shopify'); h.settings['abandoned_cart'] = { 'enabled' => true, 'inbox_id' => <INBOX_ID>, 'template_name' => 'abandoned_cart_reminder', 'language' => 'en', 'require_marketing_consent' => false }; h.save!"
+bundle exec rails runner "h = Account.find(1).hooks.find_by!(app_id: 'shopify'); h.settings['abandoned_cart'] = { 'enabled' => true, 'inbox_id' => <INBOX_ID>, 'template_name' => 'abandoned_cart_reminder', 'language' => 'en', 'require_marketing_consent' => false, 'store_domain' => 'biotane.in' }; h.save!"
 ```
 
 #### Disable / Switch Off via CLI (`rails runner`)
