@@ -1,6 +1,8 @@
 # 008 — COD orders: "pay online, save 10%" via Cashfree payment link (fully automatic)
 
-**Status:** TODO   <!-- TODO → IN PROGRESS → DONE → REVIEWED -->
+**Status:** PARKED   <!-- PARKED → TODO (only when the user says so) → IN PROGRESS → DONE → REVIEWED -->
+
+> **PARKED (user, 2026-09-29). Do not start this plan.** Pick it up only when the user explicitly moves it to TODO. Plan 003 ships without it: COD orders get only the normal confirmation.
 **Author:** Claude · **Implementer:** Antigravity
 **Depends on:** plan 003 (order webhooks, `Shopify::OrderUpdateService`, shared helpers, "Order updates" page section). Start after 003 is REVIEWED.
 
