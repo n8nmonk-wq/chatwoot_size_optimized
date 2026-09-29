@@ -1,6 +1,6 @@
 # 003 — Shopify order utility messages on WhatsApp (confirmed, shipped, out for delivery, delivered)
 
-**Status:** DONE   <!-- TODO → IN PROGRESS → DONE → REVIEWED -->
+**Status:** IN PROGRESS   <!-- TODO → IN PROGRESS → DONE → REVIEWED -->
 **Author:** Claude · **Implementer:** Antigravity
 **Depends on:** plans 002, 006 (REVIEWED) and **007** (settings page load fix). Don't start before 007 is DONE; this plan extends the same page.
 **Rewritten 2026-09-29** to build on 002/006 (the first version predates them). **Amended 2026-09-29 (while IN PROGRESS, after step 2):** four milestones, a template dropdown per milestone, and per-variable mapping (option B), also for abandoned cart. Changes are marked **[amended]**. Steps 1–2 stay as done, except `Shopify::OrderNotification::KINDS` gains `out_for_delivery`.
@@ -153,4 +153,17 @@ Rules:
   - `ponytail` (full), `tdd`, `ux-writing`, `impeccable`.
 
 ## Review (Claude)
+**Verdict (2026-09-29): not REVIEWED yet. Follow-ups F1–F6 first.** Status set back to IN PROGRESS.
 
+Checked: `3ed1d7f` (34 files, +3498/−207) against the steps and amendments, reading `Shopify::OrderUpdateService`, `Shopify::TemplateVariableHelper`, `Shopify::TemplateValidator` (list), `Webhooks::ShopifyController`, `Shopify::WebhookRegistrationService` (topics), `Shopify::AbandonedCartPayloadBuilder` (mapping path), and `Whatsapp::TemplateProcessorService#process_button_components`. Claude's runs: `TZ=UTC npx vitest run` → **380 files, 4176 passed**. **RSpec not re-run by Claude:** Docker Desktop wasn't running (`dockerDesktopLinuxEngine` pipe missing), so the implementer's 123/0 is unverified. The next review re-runs it.
+
+Good: the webhook endpoint only verifies HMAC, finds the hook and enqueues (no inline network calls); send-once via the unique index with insert-before-send; "no shipped/out-for-delivery after delivered"; test mode returns before any row; milestone switch off = no row; the validator checks approved status, media headers, that every slot is mapped, and per-milestone allowed sources.
+
+### Follow-ups (implementer)
+- [ ] **F1. Abandoned-cart `total` is always empty with a mapping.** `resolve_total` reads `checkout['totalPrice']['amount']`, but the reminder query returns `totalPriceSet { shopMoney { amount currencyCode } }` (`abandoned_cart_reminder_service.rb:12`, and the builder's own legacy path uses `totalPriceSet`). Read `totalPriceSet.shopMoney`. Spec with the **real GraphQL node shape** (copy the query's fields), not a hand-made hash.
+- [ ] **F2. No silent fallback to the legacy payload.** `AbandonedCartPayloadBuilder#build_from_custom_mapping` returns `build_legacy` when mapping resolution fails, which sends the old 3-variable payload to the admin's **new** template (wrong content, or a Meta error recorded as a vague failure). A mapping error must record `failed` with the reason (`empty_param:<slot>` / `url_host_mismatch`) and send nothing. The legacy path is only for "no mapping saved yet".
+- [ ] **F3. URL button index gets lost.** `build_template_processed_params` puts buttons at `buttons[index]` and then calls `.compact`, so a template whose URL button is second (e.g. quick reply first) sends the URL as index 0 and Meta rejects it. Remove the `.compact` (`TemplateProcessorService#process_button_components` already skips blanks and keeps the real index). Spec: quick reply at 0, URL at 1 → the component has `index: 1`.
+- [ ] **F4. Fail loudly when the order can't be fetched.** `OrderUpdateService#fetch_shopify_order` rescues everything and returns `{}`, so a Shopify error (token, scope, protected data) becomes `skipped / missing_phone` and the message is lost without trace. Let it raise so `Shopify::OrderUpdateJob` fails and Sidekiq retries (the unique index keeps retries safe). Log the order id and error class only.
+- [ ] **F5. `store_name` never comes from Shopify.** `resolve_store_name` reads `hook.settings['store_name']`, which nothing writes, so it always falls back to the domain. Fetch the shop name once (GraphQL `shop { name }`) on connect / webhook registration and store it, or drop the source from the list, the validator and the page. Pick one and note it.
+- [ ] **F6. Notes must match the code.** Implementation notes say registration uses `ORDERS_UPDATED` / `FULFILLMENTS_UPDATE`. The code registers `ORDERS_CREATE FULFILLMENTS_CREATE FULFILLMENT_EVENTS_CREATE` (correct per plan). Correct the notes. Also split future work into per-step commits, as the plan asks (this landed as one 34-file commit).
+- Minor (do while there): `handle_order_update` passes `params.to_unsafe_hash`, which with JSON wrap parameters also contains a duplicate `shopify` key holding the whole payload again. Drop it (`.except('controller', 'action', 'shopify')`) so the Sidekiq args aren't doubled with customer data.
