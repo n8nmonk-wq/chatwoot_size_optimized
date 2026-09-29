@@ -78,8 +78,16 @@ class Shopify::AbandonedCartReminderService
     @graphql_client ||= ShopifyAPI::Clients::Graphql::Admin.new(session: shopify_session)
   end
 
+  def delay_hours
+    abandoned_cart_settings['delay_hours'].to_i.then { |h| h.positive? ? h : 24 }
+  end
+
+  def test_phones
+    @test_phones ||= (abandoned_cart_settings['test_phones'] || []).map(&:to_s)
+  end
+
   def fetch_abandoned_checkouts
-    query_filter = "created_at:>=#{72.hours.ago.iso8601} AND created_at:<=#{24.hours.ago.iso8601}"
+    query_filter = "created_at:>=#{(delay_hours + 48).hours.ago.iso8601} AND created_at:<=#{delay_hours.hours.ago.iso8601}"
     cursor = nil
     checkouts = []
 
@@ -106,7 +114,7 @@ class Shopify::AbandonedCartReminderService
     return false if checkout_id.blank? || checkout['completedAt'].present?
 
     created_at = Time.zone.parse(checkout['createdAt'])
-    return false if created_at.blank? || created_at > 24.hours.ago || created_at < 72.hours.ago
+    return false if created_at.blank? || created_at > delay_hours.hours.ago || created_at < (delay_hours + 48).hours.ago
 
     !@hook.account.shopify_abandoned_checkout_reminders.exists?(checkout_id: checkout_id)
   end
@@ -126,10 +134,16 @@ class Shopify::AbandonedCartReminderService
 
   def resolve_and_validate_phone(checkout, checkout_id)
     raw_phone, country_code = extract_raw_phone_and_country(checkout)
-    return record_reminder(checkout_id, 'skipped', 'missing_phone') if raw_phone.blank?
+    return test_phones.present? ? nil : record_reminder(checkout_id, 'skipped', 'missing_phone') if raw_phone.blank?
 
     phone = normalize_phone(raw_phone, country_code)
+    return nil if test_phones.present? && test_phones.exclude?(phone)
     return record_reminder(checkout_id, 'skipped', 'missing_phone') if phone.blank?
+
+    validate_contact_consent_and_opt_out(checkout, checkout_id, phone)
+  end
+
+  def validate_contact_consent_and_opt_out(checkout, checkout_id, phone)
     return record_reminder(checkout_id, 'skipped', 'consent_required') if require_marketing_consent? && !customer_consented?(checkout)
     return record_reminder(checkout_id, 'skipped', 'contact_opted_out') if contact_opted_out_or_blocked?(phone)
 
@@ -165,10 +179,9 @@ class Shopify::AbandonedCartReminderService
   end
 
   def customer_consented?(checkout)
-    email_consent = checkout.dig('customer', 'emailMarketingConsent', 'marketingState')&.upcase
-    sms_consent = checkout.dig('customer', 'smsMarketingConsent', 'marketingState')&.upcase
-
-    email_consent == 'SUBSCRIBED' || sms_consent == 'SUBSCRIBED'
+    %w[emailMarketingConsent smsMarketingConsent].any? do |type|
+      checkout.dig('customer', type, 'marketingState')&.casecmp?('subscribed')
+    end
   end
 
   def contact_opted_out_or_blocked?(phone_digits)
@@ -185,10 +198,8 @@ class Shopify::AbandonedCartReminderService
   end
 
   def valid_checkout_host?(parsed_url)
-    return false if parsed_url&.host.blank?
-
-    expected_host = parse_url("https://#{store_domain}")&.host&.downcase
-    expected_host.present? && parsed_url.host.casecmp?(expected_host)
+    expected_host = parse_url("https://#{store_domain}")&.host
+    expected_host.present? && parsed_url&.host&.casecmp?(expected_host)
   end
 
   def extract_button_suffix(raw_url)

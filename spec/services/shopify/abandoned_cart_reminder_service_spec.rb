@@ -414,5 +414,75 @@ RSpec.describe Shopify::AbandonedCartReminderService do
         described_class.new(hook).perform
       end
     end
+
+    describe 'delay_hours and test_phones (test mode)' do
+      it 'uses default 24h-72h window when delay_hours is not configured' do
+        expect(graphql_client).to receive(:query).with(hash_including(
+                                                         variables: hash_including(query: /created_at:>=.* AND created_at:<=.*/)
+                                                       )) do |args|
+          query_str = args[:variables][:query]
+          expect(query_str).to match(/created_at:>=#{72.hours.ago.strftime('%Y-%m-%d')}/)
+          expect(query_str).to match(/created_at:<=#{24.hours.ago.strftime('%Y-%m-%d')}/)
+          graphql_response
+        end
+
+        described_class.new(hook).perform
+      end
+
+      it 'picks a 2h-old checkout when delay_hours is set to 1' do
+        hook.settings['abandoned_cart']['delay_hours'] = 1
+        hook.save!
+
+        checkout_node['createdAt'] = 2.hours.ago.iso8601
+        expect(described_class.new(hook).send(:eligible_checkout?, checkout_node, checkout_id)).to be true
+      end
+
+      it 'sends to a matching test phone, writes no row for other phones, and sends the other normally after clearing test mode' do
+        hook.settings['abandoned_cart']['test_phones'] = ['919876543210']
+        hook.save!
+
+        other_node = checkout_node.deep_dup
+        other_node['id'] = 'gid://shopify/AbandonedCheckout/111222333'
+        other_node['customer']['phone'] = '+919812143700'
+
+        allow(graphql_client).to receive(:query).and_return(
+          instance_double(ShopifyAPI::Clients::HttpResponse,
+                          body: {
+                            'data' => {
+                              'abandonedCheckouts' => {
+                                'pageInfo' => { 'hasNextPage' => false, 'endCursor' => nil },
+                                'nodes' => [checkout_node, other_node]
+                              }
+                            }
+                          })
+        )
+
+        described_class.new(hook).perform
+
+        expect(account.shopify_abandoned_checkout_reminders.exists?(checkout_id: checkout_id)).to be true
+        expect(account.shopify_abandoned_checkout_reminders.exists?(checkout_id: other_node['id'])).to be false
+
+        hook.settings['abandoned_cart']['test_phones'] = []
+        hook.save!
+
+        described_class.new(hook).perform
+
+        expect(account.shopify_abandoned_checkout_reminders.exists?(checkout_id: other_node['id'])).to be true
+      end
+
+      it 'does not re-send to a test phone already sent after test mode is cleared' do
+        hook.settings['abandoned_cart']['test_phones'] = ['919876543210']
+        hook.save!
+
+        described_class.new(hook).perform
+        expect(account.shopify_abandoned_checkout_reminders.where(checkout_id: checkout_id).count).to eq(1)
+
+        hook.settings['abandoned_cart']['test_phones'] = []
+        hook.save!
+
+        expect(whatsapp_channel).not_to receive(:send_template)
+        described_class.new(hook).perform
+      end
+    end
   end
 end
