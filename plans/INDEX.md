@@ -11,5 +11,5 @@ Status: TODO → IN PROGRESS → DONE → REVIEWED (then moved to done/). PARKED
 | 002 | [Shopify abandoned-cart WhatsApp](done/002-shopify-abandoned-cart-whatsapp.md) | REVIEWED | Hourly cron, 24h reminder; needs Meta template + protected-data approval + store_domain before go-live |
 | 003 | [Shopify order utility WhatsApp](003-shopify-order-utility-whatsapp.md) | TODO | Webhooks: confirmed/shipped/delivered; needs 002 first |
 | 004 | [Shopify per-account credentials](004-shopify-per-account-credentials.md) | PARKED | Second Shopify client = new account with its own Client ID/Secret. Do not start until the user says so |
-| 005 | [CI: Node 24 actions + faster builds](005-ci-actions-node24.md) | TODO | Node24 action majors, pin ubuntu-24.04, parallel build with latest gated on tests, skip docs-only pushes, .dockerignore |
+| 005 | [CI: Node 24 actions + faster builds](005-ci-actions-node24.md) | DONE | Node24 action majors, pin ubuntu-24.04, parallel build with latest gated on tests, skip docs-only pushes, .dockerignore |
 | 006 | [Shopify settings page](006-shopify-settings-page.md) | TODO | Admin-only Settings → Shopify: connect, reminder settings, test mode (test phones + delay). After 005, before 003 |
