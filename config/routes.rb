@@ -269,7 +269,7 @@ Rails.application.routes.draw do
                 post :process_event
               end
             end
-            resource :shopify, controller: 'shopify', only: [:destroy] do
+            resource :shopify, controller: 'shopify', only: [:show, :update, :destroy] do
               collection do
                 post :auth
                 get :orders

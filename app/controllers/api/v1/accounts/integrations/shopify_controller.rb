@@ -2,7 +2,7 @@ class Api::V1::Accounts::Integrations::ShopifyController < Api::V1::Accounts::In
   include Shopify::IntegrationHelper
   before_action :setup_shopify_context, only: [:orders]
   before_action :fetch_hook, except: [:auth]
-  before_action :check_authorization, only: [:auth, :destroy]
+  before_action :check_authorization, only: [:auth, :show, :update, :destroy]
   before_action :validate_contact, only: [:orders]
 
   def auth
@@ -20,6 +20,23 @@ class Api::V1::Accounts::Integrations::ShopifyController < Api::V1::Accounts::In
     )
 
     render json: { redirect_url: auth_url }
+  end
+
+  def show
+    return render json: { connected: false } if @hook.blank?
+
+    render json: hook_response_payload
+  end
+
+  def update
+    validation_error = validate_abandoned_cart_params
+    return render json: { error: validation_error }, status: :unprocessable_entity if validation_error.present?
+
+    updated_settings = build_updated_abandoned_cart_settings
+    @hook.settings = @hook.settings.merge('abandoned_cart' => updated_settings)
+    @hook.save!
+
+    render json: hook_response_payload
   end
 
   def orders
@@ -41,6 +58,90 @@ class Api::V1::Accounts::Integrations::ShopifyController < Api::V1::Accounts::In
 
   private
 
+  def hook_response_payload
+    {
+      connected: @hook.present? && @hook.enabled?,
+      reference_id: @hook.reference_id,
+      expires_at: @hook.settings['expires_at'],
+      settings: {
+        abandoned_cart: @hook.settings['abandoned_cart'] || {}
+      }
+    }
+  end
+
+  def abandoned_cart_params
+    params[:abandoned_cart] || {}
+  end
+
+  def validate_abandoned_cart_params
+    return if params[:abandoned_cart].blank?
+
+    validate_inbox_param || validate_delay_param || validate_test_phones_param
+  end
+
+  def validate_inbox_param
+    return unless abandoned_cart_params.key?(:inbox_id) && abandoned_cart_params[:inbox_id].present?
+
+    inbox = Current.account.inboxes.find_by(id: abandoned_cart_params[:inbox_id])
+    'Invalid WhatsApp inbox' if inbox.blank? || inbox.channel_type != 'Channel::Whatsapp'
+  end
+
+  def validate_delay_param
+    return unless abandoned_cart_params.key?(:delay_hours) && abandoned_cart_params[:delay_hours].present?
+
+    val = abandoned_cart_params[:delay_hours].to_i
+    'Delay hours must be between 1 and 72' unless val.between?(1, 72)
+  end
+
+  def validate_test_phones_param
+    return unless abandoned_cart_params.key?(:test_phones)
+
+    phones = abandoned_cart_params[:test_phones]
+    return 'Test phones must be an array' unless phones.is_a?(Array)
+
+    'Maximum 5 test phones allowed' if phones.length > 5
+  end
+
+  def build_updated_abandoned_cart_settings
+    current = (@hook.settings['abandoned_cart'] || {}).dup
+    assign_boolean_keys(current)
+    assign_string_keys(current)
+    assign_numeric_keys(current)
+    current['test_phones'] = normalize_test_phones(abandoned_cart_params[:test_phones]) if abandoned_cart_params.key?(:test_phones)
+    current
+  end
+
+  def assign_boolean_keys(current)
+    %i[enabled require_marketing_consent].each do |k|
+      current[k.to_s] = ActiveRecord::Type::Boolean.new.cast(abandoned_cart_params[k]) if abandoned_cart_params.key?(k)
+    end
+  end
+
+  def assign_string_keys(current)
+    %i[template_name language store_domain].each do |k|
+      current[k.to_s] = abandoned_cart_params[k].to_s.strip if abandoned_cart_params.key?(k)
+    end
+  end
+
+  def assign_numeric_keys(current)
+    current['inbox_id'] = abandoned_cart_params[:inbox_id].presence&.to_i if abandoned_cart_params.key?(:inbox_id)
+    current['delay_hours'] = abandoned_cart_params[:delay_hours].to_i if abandoned_cart_params.key?(:delay_hours)
+  end
+
+  def normalize_test_phones(raw_phones)
+    return [] unless raw_phones.is_a?(Array)
+
+    raw_phones.map do |raw|
+      phone = raw.to_s.strip
+      clean = if phone.start_with?('+')
+                TelephoneNumber.parse(phone).e164_number&.delete_prefix('+')
+              else
+                TelephoneNumber.parse(phone, 'IN').e164_number&.delete_prefix('+')
+              end
+      clean.presence || phone.gsub(/\D/, '')
+    end.compact_blank.uniq
+  end
+
   def redirect_uri
     "#{ENV.fetch('FRONTEND_URL', '')}/shopify/callback"
   end
@@ -50,7 +151,10 @@ class Api::V1::Accounts::Integrations::ShopifyController < Api::V1::Accounts::In
   end
 
   def fetch_hook
-    @hook = Integrations::Hook.find_by!(account: Current.account, app_id: 'shopify')
+    @hook = Integrations::Hook.find_by(account: Current.account, app_id: 'shopify')
+    return if @hook.present? || action_name == 'show'
+
+    render json: { error: 'Integration not found' }, status: :not_found
   end
 
   def fetch_customers
