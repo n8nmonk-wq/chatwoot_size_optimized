@@ -11,3 +11,4 @@ Status: TODO → IN PROGRESS → DONE → REVIEWED (then moved to done/). PARKED
 | 002 | [Shopify abandoned-cart WhatsApp](done/002-shopify-abandoned-cart-whatsapp.md) | REVIEWED | Hourly cron, 24h reminder; needs Meta template + protected-data approval + store_domain before go-live |
 | 003 | [Shopify order utility WhatsApp](003-shopify-order-utility-whatsapp.md) | TODO | Webhooks: confirmed/shipped/delivered; needs 002 first |
 | 004 | [Shopify per-account credentials](004-shopify-per-account-credentials.md) | PARKED | Second Shopify client = new account with its own Client ID/Secret. Do not start until the user says so |
+| 005 | [CI actions on Node 24](005-ci-actions-node24.md) | TODO | Bump workflow actions to node24 majors, pin ubuntu-24.04; clears CI warnings before next push |
