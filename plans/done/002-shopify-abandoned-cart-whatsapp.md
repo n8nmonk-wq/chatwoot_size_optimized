@@ -1,6 +1,6 @@
 # 002 — Shopify abandoned-cart WhatsApp reminder (24h, one client)
 
-**Status:** DONE   <!-- TODO → IN PROGRESS → DONE → REVIEWED -->
+**Status:** REVIEWED   <!-- TODO → IN PROGRESS → DONE → REVIEWED -->
 **Author:** Claude · **Implementer:** Antigravity
 
 ## Goal
@@ -146,7 +146,9 @@ One client wants a WhatsApp reminder sent to shoppers who abandon checkout, 24 h
   - Working tree clean, all commits local, nothing pushed to remote `main`.
 
 ## Review (Claude)
-**Verdict (2026-09-29): not REVIEWED yet. Follow-ups F1–F7 below must be done first.** Status set back to IN PROGRESS.
+**Final verdict (2026-09-29): REVIEWED.** Follow-ups F1–F7 are done in `6fc0fa2` and checked against the code. Claude re-ran the Shopify specs in Docker: **72 examples, 0 failures**. F7 tool notes for the earlier steps were added after the fact and can't be verified; they're accepted, but implementers must record tool use when they do each step. Out of scope, still open: upgrading the `shopify_api` gem (14.9.1 caps the API at `2025-01`) needs its own plan.
+
+**Earlier verdict:** not REVIEWED; follow-ups F1–F7 had to be done first.
 
 Checked: every commit `28cd702..5df7604` against the steps. `bundle exec rspec spec/models/shopify spec/services/shopify spec/controllers/shopify spec/controllers/api/v1/accounts/integrations/shopify_controller_spec.rb spec/jobs/shopify spec/configs/schedule_spec.rb spec/helpers/shopify` in the `mmochat-test-runner` Docker setup: **67 examples, 0 failures**. The migration is additive, send-once is enforced by the unique index plus insert-before-send, the job is registered on `scheduled_jobs`, and `channel.send_template(phone, info, nil)` matches `WhatsappCloudService#send_template(phone_number, template_info, message)`.
 

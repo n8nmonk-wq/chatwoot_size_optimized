@@ -74,6 +74,11 @@ Today, `Webhooks::ShopifyController#events` (`app/controllers/webhooks/shopify_c
   - **Out-of-order rule:** don't send `shipped` if `delivered` was already recorded for that order.
   - Insert the notification row **before** sending (a unique-index conflict means skip). Then send the template configured for that kind.
   - Template params come from settings. Make available: first name, order name (e.g. `#1001`), item summary (max 3 titles), total, tracking number, tracking URL (`tracking_urls[0]` / `tracking_url`) and the order status URL.
+  - **Template shapes (chat, 2026-09-29), submitted to Meta as Utility, one per kind.** Every one has a **URL button with a dynamic suffix**, base `https://<store_domain>/`. The parameter is the order's `order_status_url` with the `https://<host>/` prefix stripped (same rule and host check as plan 002's `extract_button_suffix`; reuse it, don't copy it). The tracking URL is **not** used: courier domains vary, and the order status page shows tracking.
+    - `order_confirmed`: body `{{1}}` first name, `{{2}}` order name, `{{3}}` item summary, `{{4}}` total with currency.
+    - `order_shipped`: body `{{1}}` first name, `{{2}}` order name, `{{3}}` tracking number (fallback `"will be shared soon"`; Meta rejects empty params).
+    - `order_delivered`: body `{{1}}` first name, `{{2}}` order name.
+    - First name, item summary ("<first title> and N more items") and total follow the same rules as plan 002 follow-ups F4/F5 (share the code). Fallback name `there`.
   - Mark the row `sent` or `failed` with the reason.
 - [ ] 5. **Configuration (documented, no UI).** Add a "Shopify order updates" section to `PROJECT.md`:
   - the `hook.settings['order_updates']` keys (`enabled`, `inbox_id`, and per kind: `template_name`, `language`, param order),
