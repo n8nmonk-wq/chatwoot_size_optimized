@@ -2,7 +2,7 @@
 import { h, ref, computed, onMounted, watch } from 'vue';
 import { provideSidebarContext, useSidebarResize } from './provider';
 import { useAccount } from 'dashboard/composables/useAccount';
-import { useConfig } from 'dashboard/composables/useConfig';
+import { useAdmin } from 'dashboard/composables/useAdmin';
 import { useKbd } from 'dashboard/composables/utils/useKbd';
 import { useMapGetter } from 'dashboard/composables/store';
 import { useStore } from 'vuex';
@@ -19,7 +19,6 @@ import SidebarChangelogCard from './SidebarChangelogCard.vue';
 import SidebarChangelogButton from './SidebarChangelogButton.vue';
 import ChannelLeaf from './ChannelLeaf.vue';
 import ChannelIcon from 'next/icon/ChannelIcon.vue';
-import EmojiIcon from 'next/emoji-icon-picker/EmojiIcon.vue';
 import SidebarAccountSwitcher from './SidebarAccountSwitcher.vue';
 import Logo from 'next/icon/Logo.vue';
 import ComposeConversation from 'dashboard/components-next/NewConversation/ComposeConversation.vue';
@@ -44,15 +43,9 @@ const emit = defineEmits([
   'closeMobileSidebar',
 ]);
 
-const { accountScopedRoute, isOnChatwootCloud } = useAccount();
-const { isEnterprise } = useConfig();
+const { accountScopedRoute } = useAccount();
 const store = useStore();
 
-// Calls run on the enterprise-only API (cloud runs enterprise); hide the entry
-// on community so it doesn't lead to a dashboard/CTA the backend can't serve.
-const isCallsAvailable = computed(
-  () => isOnChatwootCloud.value || isEnterprise
-);
 const searchShortcut = useKbd([`$mod`, 'k']);
 const { t } = useI18n();
 
@@ -98,6 +91,15 @@ const hasDataImport = computed(() => {
   return isFeatureEnabledonAccount.value(
     accountId.value,
     FEATURE_FLAGS.DATA_IMPORT
+  );
+});
+
+const { isAdmin } = useAdmin();
+
+const hasShopifyIntegration = computed(() => {
+  return (
+    isAdmin.value &&
+    isFeatureEnabledonAccount.value(accountId.value, FEATURE_FLAGS.SHOPIFY)
   );
 });
 
@@ -222,9 +224,6 @@ const getInboxUnreadCount = useMapGetter(
 const getLabelUnreadCount = useMapGetter(
   'conversationUnreadCounts/getLabelUnreadCount'
 );
-const getTeamUnreadCount = useMapGetter(
-  'conversationUnreadCounts/getTeamUnreadCount'
-);
 const mentionsUnreadCount = useMapGetter(
   'conversationUnreadCounts/getMentionsUnreadCount'
 );
@@ -237,7 +236,6 @@ const unattendedUnreadCount = useMapGetter(
 const getFolderUnreadCount = useMapGetter(
   'conversationUnreadCounts/getFolderUnreadCount'
 );
-const teams = useMapGetter('teams/getMyTeams');
 const contactCustomViews = useMapGetter('customViews/getContactCustomViews');
 const conversationCustomViews = useMapGetter(
   'customViews/getConversationCustomViews'
@@ -300,14 +298,6 @@ const sortedFolders = computed(() =>
     sortBy: getSortForSection(SIDEBAR_SORT_SECTIONS.FOLDERS),
     labelKey: view => view.name,
     unreadCountKey: view => getFolderUnreadCount.value(view.id),
-  })
-);
-
-const sortedTeams = computed(() =>
-  sortSidebarItems(teams.value, {
-    sortBy: getSortForSection(SIDEBAR_SORT_SECTIONS.TEAMS),
-    labelKey: team => team.name,
-    unreadCountKey: team => getTeamUnreadCount.value(team.id),
   })
 );
 
@@ -725,6 +715,16 @@ const menuItems = computed(() => {
           icon: 'i-lucide-workflow',
           to: accountScopedRoute('conversation_workflow_index'),
         },
+        ...(hasShopifyIntegration.value
+          ? [
+              {
+                name: 'Settings Shopify',
+                label: t('SIDEBAR.SHOPIFY'),
+                icon: 'i-lucide-shopping-bag',
+                to: accountScopedRoute('settings_integrations_shopify'),
+              },
+            ]
+          : []),
         {
           name: 'Settings Security',
           label: t('SIDEBAR.SECURITY'),

@@ -2,9 +2,13 @@
   "INTEGRATION_SETTINGS": {
     "SHOPIFY": {
       "HEADER": "Shopify",
+      "DESCRIPTION": "Connect your Shopify store to sync customer checkouts and send automated WhatsApp abandoned cart reminders.",
+      "CONNECTED": "Connected",
+      "NOT_CONNECTED": "Not connected",
+      "STORE_DOMAIN": "Store: {shop}",
       "DELETE": {
-        "TITLE": "Delete Shopify Integration",
-        "MESSAGE": "Are you sure you want to delete the Shopify integration?"
+        "TITLE": "Disconnect Shopify store",
+        "MESSAGE": "Are you sure you want to disconnect this Shopify store? This will stop all abandoned cart reminders."
       },
       "STORE_URL": {
         "TITLE": "Connect Shopify Store",
@@ -14,7 +18,58 @@
         "CANCEL": "Cancel",
         "SUBMIT": "Connect Store"
       },
-      "ERROR": "There was an error connecting to Shopify. Please try again or contact support if the issue persists."
+      "ERROR": "There was an error connecting to Shopify. Please try again or contact support if the issue persists.",
+      "DISCONNECT": {
+        "BUTTON_TEXT": "Disconnect",
+        "TITLE": "Disconnect Shopify store",
+        "MESSAGE": "Are you sure you want to disconnect this Shopify store? This will stop all abandoned cart reminders.",
+        "CONFIRM": "Disconnect",
+        "CANCEL": "Cancel",
+        "SUCCESS": "Shopify store disconnected successfully.",
+        "ERROR": "Failed to disconnect Shopify store."
+      },
+      "REMINDERS": {
+        "TITLE": "Abandoned Cart Reminders",
+        "DESCRIPTION": "Automatically send WhatsApp template reminders to shoppers who left items in their cart.",
+        "ENABLE": "Enable abandoned cart reminders",
+        "INBOX": {
+          "LABEL": "WhatsApp inbox",
+          "PLACEHOLDER": "Select a WhatsApp inbox",
+          "HELP": "The WhatsApp inbox used to send reminder messages."
+        },
+        "TEMPLATE_NAME": {
+          "LABEL": "Template name",
+          "PLACEHOLDER": "abandoned_cart_reminder",
+          "HELP": "The WhatsApp approved template name."
+        },
+        "LANGUAGE": {
+          "LABEL": "Template language",
+          "PLACEHOLDER": "en",
+          "HELP": "Language code of your WhatsApp template (e.g. en, hi)."
+        },
+        "STORE_DOMAIN": {
+          "LABEL": "Store domain",
+          "PLACEHOLDER": "your-store.com",
+          "HELP": "The custom domain used for checkout URLs (e.g. biotane.in)."
+        },
+        "MARKETING_CONSENT": {
+          "LABEL": "Require marketing consent",
+          "HELP": "Only send reminders to customers who opted in to marketing."
+        },
+        "TEST_PHONES": {
+          "LABEL": "Test phone numbers",
+          "PLACEHOLDER": "+919876543210, +919812143700",
+          "HELP": "Comma-separated list of up to 5 phone numbers. While set, only these numbers get reminders."
+        },
+        "DELAY_HOURS": {
+          "LABEL": "Delay (hours)",
+          "HELP": "Hours after checkout abandonment to send reminder (1–72 hours). Default is 24."
+        },
+        "TEST_MODE_NOTICE": "Test mode active: only specified test phone numbers will receive reminders.",
+        "SAVE_BUTTON": "Save settings",
+        "SAVE_SUCCESS": "Shopify reminder settings saved successfully.",
+        "SAVE_ERROR": "Failed to save Shopify reminder settings."
+      }
     },
     "HEADER": "Integrations",
     "DESCRIPTION": "Chatwoot integrates with multiple tools and services to improve your team's efficiency. Explore the list below to configure your favorite apps.",

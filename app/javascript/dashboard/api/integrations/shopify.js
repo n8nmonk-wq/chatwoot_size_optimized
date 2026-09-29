@@ -12,6 +12,14 @@ class ShopifyAPI extends ApiClient {
       params: { contact_id: contactId },
     });
   }
+
+  update(data) {
+    return axios.patch(this.url, data);
+  }
+
+  disconnect() {
+    return axios.delete(this.url);
+  }
 }
 
 export default new ShopifyAPI();
