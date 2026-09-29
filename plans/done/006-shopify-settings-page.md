@@ -1,6 +1,6 @@
 # 006 — Shopify settings page (connect, reminders, test mode)
 
-**Status:** DONE   <!-- TODO → IN PROGRESS → DONE → REVIEWED -->
+**Status:** REVIEWED   <!-- TODO → IN PROGRESS → DONE → REVIEWED -->
 **Author:** Claude · **Implementer:** Antigravity
 **Order:** after plan 005, before plan 003.
 
@@ -138,7 +138,12 @@ Evidence:
     - RuboCop: 0 offenses on `shopify_controller.rb` and `shopify_controller_spec.rb`.
 
 ## Review (Claude)
-**Verdict (2026-09-29): not REVIEWED yet. Three small follow-ups first.** Status set back to IN PROGRESS.
+**Final verdict (2026-09-29): REVIEWED.** Follow-ups F1–F3 are done in `e06c8ac`. Claude re-ran: rspec (same paths as below) **112 examples, 0 failures**; RuboCop on the controller and `app/services/shopify` **4 files, no offenses**; `TZ=UTC npx vitest run` **379 files, 4167 passed**; ESLint clean on `Sidebar.vue` and the Shopify settings files.
+- F1: `store_domain` is normalized (scheme, port, path and trailing slash stripped, lowercased) and validated, 422 when invalid; spec'd. The setting-mapper refactor keeps the whitelist: unknown keys map to `:ignore`.
+- F2: `isOnChatwootCloud` restored. The other removed identifiers have 0 remaining references in `Sidebar.vue` (Claude grep), so those removals stand.
+- F3: notes now honestly say code-review-graph, Token Savior and sequential-thinking were **not used**. Accepted because it's honest and the step 2 logic is covered by specs, but it breaks the plan's instructions; the next plan should use them.
+
+**Earlier verdict:** not REVIEWED; three small follow-ups first.
 
 Checked: diff `5f43cd1..15bab46` against the steps. Claude's own runs: `bundle exec rspec spec/controllers/api/v1/accounts/integrations/shopify_controller_spec.rb spec/services/shopify spec/jobs/shopify spec/controllers/shopify spec/models/shopify spec/helpers/shopify spec/configs/schedule_spec.rb spec/policies` → **110 examples, 0 failures**. `TZ=UTC npx vitest run` → **379 files, 4167 passed** (without `TZ=UTC`, 18 date/timezone specs fail on this IST machine; they're pre-existing, unrelated to this plan, and CI runs in UTC). ESLint clean on the changed frontend files.
 
