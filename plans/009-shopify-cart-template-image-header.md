@@ -72,7 +72,7 @@ Decided with the user (2026-09-30):
 - [x] `pnpm test` passes in full. The touched `bundle exec rspec` specs pass, and their counts are pasted in Implementation notes.
 - [x] In Settings → Shopify → Abandoned cart, `abandoned_cart_reminder` (image header) can be selected. A URL field appears, and the settings save with a valid `https` URL.
 - [x] Saving without a URL, or with an `http://` URL, shows a clear error, and nothing is saved.
-- [x] A reminder sent with that mapping reaches WhatsApp with the image as its header. Verify with a test phone in test mode after deploy.
+- [ ] A reminder sent with that mapping reaches WhatsApp with the image as its header. Verify with a test phone in test mode after deploy.
 - [x] Order-update milestones still show media-header templates as disabled. A milestone send has no header component.
 - [x] A missing URL at send time records `failed / missing_header_image`, and nothing is sent.
 
@@ -117,5 +117,18 @@ Decided with the user (2026-09-30):
   - `ponytail` (full), `tdd` (red-to-green), `ux-writing`, `impeccable`, `review-delta`.
 
 ## Review (Claude)
+**Verdict (2026-09-30): code approved. REVIEWED once RSpec is confirmed. The WhatsApp image check is done after deploy.**
+
+Checked `f275115` against steps 1–4:
+- **Validator** ✅ IMAGE is allowed only for `abandoned_cart`, and needs an `https` URL with a host. VIDEO/DOCUMENT are rejected everywhere. For order kinds, a media header or a `header_image_url` is rejected. There's a new `template_validator_spec.rb`.
+- **Payload** ✅ `build_template_processed_params` sets `header: { media_url, media_type: 'image' }`, and `TemplateProcessorService#build_media_header_params` is unchanged. The missing-URL check sits in `AbandonedCartPayloadBuilder#image_header_missing_url?` (it has the channel, which is a reasonable place) and gives `failed / missing_header_image`.
+- **Blast radius** ✅ `build_template_processed_params` has 2 callers (`send_milestone_notification`, `build_from_custom_mapping`). The order path can't get a header because the validator rejects `header_image_url` for order kinds, and `order_update_service_spec` asserts that no header is sent.
+- **UI** ✅ The URL field uses the `Input` component's `input` event, the same pattern as the static-text field. The template setter rebuilds the object, so switching templates drops `header_image_url`.
+- **Nit, no action needed:** the helper adds the image header whenever `header_image_url` is present, even if the cart template has a text header. The UI clears the URL on template change, so this can only happen with hand-edited settings.
+
+Corrections to the notes:
+- **Acceptance "reaches WhatsApp with the image" is unticked.** It can only be checked after deploy. It's a live check: test phone, Delay 1, image-header template.
+- The implementer's Vitest run was 16 tests, not the full suite. **Claude ran the full suite: `TZ=UTC npx vitest run` → 380 files, 4179 passed.**
+- The implementer ran RSpec on 129 examples. Claude hasn't re-run it yet (it needs Docker, which needs the user's go-ahead).
 
 
