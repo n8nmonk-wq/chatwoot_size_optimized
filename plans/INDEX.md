@@ -15,3 +15,4 @@ Status: TODO → IN PROGRESS → DONE → REVIEWED (then moved to done/). PARKED
 | 006 | [Shopify settings page](done/006-shopify-settings-page.md) | REVIEWED | Admin-only Settings → Shopify: connect, reminder settings, test mode (test phones + delay) |
 | 007 | [Shopify settings page load fix](done/007-shopify-settings-page-load-fix.md) | REVIEWED | Hotfix: page reads data.abandoned_cart instead of data.settings.abandoned_cart; error message key |
 | 008 | [COD prepaid offer via Cashfree](008-cod-prepaid-offer-cashfree.md) | PARKED | Do not start until the user says so. COD orders: confirmation + "pay online, save 10%" Cashfree link (24h); on payment, auto-edit + mark paid in Shopify. After 003 |
+| 009 | [Abandoned-cart template image header](009-shopify-cart-template-image-header.md) | TODO | Fixed https image URL for image-header cart templates; orders stay text-only; IMAGE only |
