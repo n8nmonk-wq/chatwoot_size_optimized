@@ -1,6 +1,6 @@
 # 003 — Shopify order utility messages on WhatsApp (confirmed, shipped, out for delivery, delivered)
 
-**Status:** DONE   <!-- TODO → IN PROGRESS → DONE → REVIEWED -->
+**Status:** REVIEWED   <!-- TODO → IN PROGRESS → DONE → REVIEWED -->
 **Author:** Claude · **Implementer:** Antigravity
 **Depends on:** plans 002, 006 (REVIEWED) and **007** (settings page load fix). Don't start before 007 is DONE; this plan extends the same page.
 **Rewritten 2026-09-29** to build on 002/006 (the first version predates them). **Amended 2026-09-29 (while IN PROGRESS, after step 2):** four milestones, a template dropdown per milestone, and per-variable mapping (option B), also for abandoned cart. Changes are marked **[amended]**. Steps 1–2 stay as done, except `Shopify::OrderNotification::KINDS` gains `out_for_delivery`.
@@ -175,7 +175,7 @@ Good: the webhook endpoint only verifies HMAC, finds the hook and enqueues (no i
 - [x] **F6. Notes must match the code.** Implementation notes say registration uses `ORDERS_UPDATED` / `FULFILLMENTS_UPDATE`. The code registers `ORDERS_CREATE FULFILLMENTS_CREATE FULFILLMENT_EVENTS_CREATE` (correct per plan). Correct the notes. Also split future work into per-step commits, as the plan asks (this landed as one 34-file commit).
 - Minor (do while there): `handle_order_update` passes `params.to_unsafe_hash`, which with JSON wrap parameters also contains a duplicate `shopify` key holding the whole payload again. Drop it (`.except('controller', 'action', 'shopify')`) so the Sidekiq args aren't doubled with customer data.
 
-### Re-review (2026-09-30): code approved, RSpec still unverified
+### Re-review (2026-09-30): REVIEWED
 Checked `fdbe543..4abbc54` (7 commits, one per follow-up) against F1–F6 and the minor:
 - **F1** ✅ `resolve_total` reads `totalPriceSet.shopMoney`; spec uses the real node shape (`abandoned_cart_reminder_service_spec.rb:44`) and asserts `₹1,299.00`.
 - **F2** ✅ `AbandonedCartPayloadBuilder#build` returns `[:ok|:error, …]`; its only caller (`AbandonedCartReminderService`, `:175`) records `failed` + reason and sends nothing. Legacy only when no mapping is saved.
@@ -187,4 +187,4 @@ Checked `fdbe543..4abbc54` (7 commits, one per follow-up) against F1–F6 and th
 
 Tools: `build_or_update_graph_tool` (incremental from `a9ae7e1`, 14 files) ✅. `get_impact_radius_tool` **failed** twice (the tool-safety check returned no verdict), so callers were traced by grep instead (listed above). Token Savior `switch_project` ✅.
 
-**RSpec not run by Claude, for the second time:** there's no Ruby on the Windows host, and Docker is used only when the user says so. The implementer reports 198/0. The follow-ups don't touch any JS. **REVIEWED once RSpec is confirmed green.**
+**RSpec (Claude, Docker, ruby:3.4.4 + pgvector pg16 + redis 7, containers removed afterwards):** `spec/services/shopify spec/controllers/webhooks spec/jobs/shopify spec/models/shopify spec/policies spec/controllers/api/v1/accounts/integrations/shopify_controller_spec.rb spec/controllers/shopify spec/services/whatsapp/template_parameter_converter_service_spec.rb spec/services/whatsapp/template_processor_service_spec.rb` → **220 examples, 0 failures**. The wider `spec/controllers/api/v1/accounts/integrations` run also fails 40 examples in `apps_controller_spec` (Openai), `dyte_controller_spec` and `linear_controller_spec`. Those are stale specs for integrations removed in plan 000b (the pending backend spec cleanup from plan 001) and are unrelated to this plan.
