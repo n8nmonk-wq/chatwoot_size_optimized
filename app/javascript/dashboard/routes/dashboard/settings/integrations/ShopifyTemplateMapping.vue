@@ -37,24 +37,32 @@ const templates = computed(() => {
   return getFilteredWhatsAppTemplates.value(props.inboxId) || [];
 });
 
-const isMediaHeader = template => {
-  const header = template?.components?.find(c => c.type === 'HEADER');
-  return ['IMAGE', 'VIDEO', 'DOCUMENT'].includes(header?.format);
+const getHeaderComponent = template =>
+  template?.components?.find(c => c.type === 'HEADER');
+
+const isImageHeader = template =>
+  getHeaderComponent(template)?.format === 'IMAGE';
+
+const isUnsupportedMedia = template => {
+  const format = getHeaderComponent(template)?.format;
+  if (!['IMAGE', 'VIDEO', 'DOCUMENT'].includes(format)) return false;
+  if (props.kind === 'abandoned_cart' && format === 'IMAGE') return false;
+  return true;
 };
 
 const templateOptions = computed(() => {
   return templates.value.map(tmpl => {
-    const hasMedia = isMediaHeader(tmpl);
+    const hasUnsupportedMedia = isUnsupportedMedia(tmpl);
     const friendlyName = (tmpl.name || '').replace(/_/g, ' ');
     const lang = tmpl.language || 'en';
-    const label = hasMedia
+    const label = hasUnsupportedMedia
       ? `${friendlyName} (${lang}) - ${t('INTEGRATION_SETTINGS.SHOPIFY.TEMPLATE_MAPPING.MEDIA_NOT_SUPPORTED')}`
       : `${friendlyName} (${lang})`;
 
     return {
       value: `${tmpl.name}|${lang}`,
       label,
-      disabled: hasMedia,
+      disabled: hasUnsupportedMedia,
     };
   });
 });
@@ -144,6 +152,17 @@ const activeTemplate = computed(() => {
 });
 
 const requiredSlots = computed(() => extractSlots(activeTemplate.value));
+
+const hasImageHeader = computed(
+  () => props.kind === 'abandoned_cart' && isImageHeader(activeTemplate.value)
+);
+
+const updateHeaderImageUrl = url => {
+  emit('update:modelValue', {
+    ...props.modelValue,
+    header_image_url: url,
+  });
+};
 
 const getSourcesForSlot = slot => {
   const isButton = slot.type === 'button';
@@ -282,6 +301,38 @@ const updateStaticText = (slotKey, text) => {
         "
         class="w-full"
       />
+    </div>
+
+    <!-- Header Image URL Section -->
+    <div
+      v-if="hasImageHeader"
+      class="flex flex-col gap-1.5 pt-2 border-t border-n-weak"
+    >
+      <label class="text-xs font-medium text-n-slate-12">
+        {{
+          t(
+            'INTEGRATION_SETTINGS.SHOPIFY.TEMPLATE_MAPPING.HEADER_IMAGE_URL_LABEL'
+          )
+        }}
+      </label>
+      <Input
+        data-testid="header-image-url-input"
+        :model-value="modelValue?.header_image_url || ''"
+        :placeholder="
+          t(
+            'INTEGRATION_SETTINGS.SHOPIFY.TEMPLATE_MAPPING.HEADER_IMAGE_URL_PLACEHOLDER'
+          )
+        "
+        class="w-full !mb-0"
+        @input="e => updateHeaderImageUrl(e.target.value)"
+      />
+      <span class="text-xs text-n-slate-11">
+        {{
+          t(
+            'INTEGRATION_SETTINGS.SHOPIFY.TEMPLATE_MAPPING.HEADER_IMAGE_URL_HELP'
+          )
+        }}
+      </span>
     </div>
 
     <!-- Variables Mapping Section -->

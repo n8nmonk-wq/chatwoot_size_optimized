@@ -36,6 +36,15 @@ const sampleTemplates = [
       { type: 'BODY', text: 'Hello' },
     ],
   },
+  {
+    name: 'video_template',
+    language: 'en',
+    status: 'APPROVED',
+    components: [
+      { type: 'HEADER', format: 'VIDEO' },
+      { type: 'BODY', text: 'Video hello' },
+    ],
+  },
 ];
 
 vi.mock('vue-i18n', () => ({
@@ -58,40 +67,47 @@ describe('ShopifyTemplateMapping.vue', () => {
     vi.clearAllMocks();
   });
 
-  it('renders template options and disables media header templates', () => {
-    const wrapper = mount(ShopifyTemplateMapping, {
+  it('renders template options and disables media header templates for order kinds but enables IMAGE for abandoned_cart', () => {
+    const confirmedWrapper = mount(ShopifyTemplateMapping, {
       props: {
         inboxId: 10,
         kind: 'confirmed',
         modelValue: {},
       },
       global: {
-        stubs: {
-          Select: {
-            props: ['options', 'modelValue'],
-            template: `
-              <select :value="modelValue" @change="$emit('update:modelValue', $event.target.value)">
-                <option v-for="opt in options" :key="opt.value" :value="opt.value" :disabled="opt.disabled">
-                  {{ opt.label }}
-                </option>
-              </select>
-            `,
-          },
-          Input: true,
-        },
-        mocks: {
-          $t: key => key,
-        },
+        stubs: { Select: true, Input: true },
+        mocks: { $t: key => key },
       },
     });
 
-    const options = wrapper.vm.templateOptions;
-    expect(options).toHaveLength(3);
-    expect(options[0].value).toBe('order_confirmed_template|en');
-    expect(options[0].disabled).toBe(false);
+    const confirmedOptions = confirmedWrapper.vm.templateOptions;
+    expect(confirmedOptions).toHaveLength(4);
+    expect(confirmedOptions[0].value).toBe('order_confirmed_template|en');
+    expect(confirmedOptions[0].disabled).toBe(false);
+    expect(confirmedOptions[2].value).toBe('media_template|en');
+    expect(confirmedOptions[2].disabled).toBe(true);
+    expect(confirmedOptions[3].value).toBe('video_template|en');
+    expect(confirmedOptions[3].disabled).toBe(true);
 
-    expect(options[2].value).toBe('media_template|en');
-    expect(options[2].disabled).toBe(true);
+    const cartWrapper = mount(ShopifyTemplateMapping, {
+      props: {
+        inboxId: 10,
+        kind: 'abandoned_cart',
+        modelValue: {},
+      },
+      global: {
+        stubs: { Select: true, Input: true },
+        mocks: { $t: key => key },
+      },
+    });
+
+    const cartOptions = cartWrapper.vm.templateOptions;
+    expect(cartOptions).toHaveLength(4);
+    expect(cartOptions[0].disabled).toBe(false);
+    expect(cartOptions[2].value).toBe('media_template|en');
+    expect(cartOptions[2].disabled).toBe(false);
+    expect(cartOptions[3].value).toBe('video_template|en');
+    expect(cartOptions[3].disabled).toBe(true);
   });
 
   it('extracts required slots and emits update:modelValue when template is selected', async () => {
@@ -261,5 +277,107 @@ describe('ShopifyTemplateMapping.vue', () => {
     ).toEqual({
       static: 'SPECIAL_PROMO',
     });
+  });
+
+  it('shows header image URL input only for abandoned_cart when template has IMAGE header', () => {
+    const textWrapper = mount(ShopifyTemplateMapping, {
+      props: {
+        inboxId: 10,
+        kind: 'abandoned_cart',
+        modelValue: {
+          template_name: 'order_confirmed_template',
+          language: 'en',
+        },
+      },
+      global: { stubs: { Select: true, Input: true } },
+    });
+    expect(
+      textWrapper.find('[data-testid="header-image-url-input"]').exists()
+    ).toBe(false);
+
+    const confirmedImageWrapper = mount(ShopifyTemplateMapping, {
+      props: {
+        inboxId: 10,
+        kind: 'confirmed',
+        modelValue: {
+          template_name: 'media_template',
+          language: 'en',
+        },
+      },
+      global: { stubs: { Select: true, Input: true } },
+    });
+    expect(
+      confirmedImageWrapper
+        .find('[data-testid="header-image-url-input"]')
+        .exists()
+    ).toBe(false);
+
+    const cartImageWrapper = mount(ShopifyTemplateMapping, {
+      props: {
+        inboxId: 10,
+        kind: 'abandoned_cart',
+        modelValue: {
+          template_name: 'media_template',
+          language: 'en',
+        },
+      },
+      global: { stubs: { Select: true, Input: true } },
+    });
+    expect(
+      cartImageWrapper.find('[data-testid="header-image-url-input"]').exists()
+    ).toBe(true);
+  });
+
+  it('emits header_image_url when typing in header image URL input', async () => {
+    const wrapper = mount(ShopifyTemplateMapping, {
+      props: {
+        inboxId: 10,
+        kind: 'abandoned_cart',
+        modelValue: {
+          template_name: 'media_template',
+          language: 'en',
+          variables: {},
+        },
+      },
+      global: {
+        stubs: {
+          Select: true,
+          Input: true,
+        },
+      },
+    });
+
+    wrapper.vm.updateHeaderImageUrl('https://cdn.shopify.com/files/logo.png');
+    await flushPromises();
+
+    expect(wrapper.emitted('update:modelValue')).toBeTruthy();
+    const emitted = wrapper.emitted('update:modelValue')[0][0];
+    expect(emitted.header_image_url).toBe(
+      'https://cdn.shopify.com/files/logo.png'
+    );
+  });
+
+  it('clears header_image_url when selected template changes', async () => {
+    const wrapper = mount(ShopifyTemplateMapping, {
+      props: {
+        inboxId: 10,
+        kind: 'abandoned_cart',
+        modelValue: {
+          template_name: 'media_template',
+          language: 'en',
+          header_image_url: 'https://cdn.shopify.com/files/logo.png',
+          variables: {},
+        },
+      },
+      global: { stubs: { Select: true, Input: true } },
+    });
+
+    wrapper.vm.selectedTemplateKey = 'order_confirmed_template|en';
+    await flushPromises();
+
+    expect(wrapper.emitted('update:modelValue')).toBeTruthy();
+    const emitted = wrapper.emitted('update:modelValue')[0][0];
+    expect(emitted.template_name).toBe('order_confirmed_template');
+    expect(emitted.header_image_url).toBeUndefined();
   });
 });

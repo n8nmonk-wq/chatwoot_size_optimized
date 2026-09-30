@@ -87,6 +87,7 @@ MMOChat automatically checks for abandoned Shopify checkouts every hour (at :15)
 
 #### Template Shape & Parameter Order
 - **Meta Template**: `abandoned_cart_reminder` (Marketing category) with a dynamic URL button.
+- **Header (Optional)**: Image-header templates are supported for the reminder with a fixed image URL (for example the logo uploaded to Shopify → Content → Files, which gives a public `cdn.shopify.com` link). Order-update milestones stay text-only.
 - **Body {{1}}**: Customer's first name (falls back to `'there'`).
 - **Body {{2}}**: First product title, plus `and N more item(s)` when the cart has more than one (falls back to `'your items'`).
 - **Body {{3}}**: Cart total with currency (e.g. `'₹1,299.00'`).

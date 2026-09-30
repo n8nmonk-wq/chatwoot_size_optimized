@@ -35,8 +35,39 @@ class Shopify::TemplateValidator
   private
 
   def check_media_header
-    header = Array(@template_def['components']).find { |c| c['type']&.upcase == 'HEADER' }
-    'Media header templates are not supported' if header && %w[IMAGE VIDEO DOCUMENT].include?(header['format']&.upcase)
+    format = header_format
+    if %w[IMAGE VIDEO DOCUMENT].include?(format)
+      return validate_header_image_url if format == 'IMAGE' && @kind == 'abandoned_cart'
+
+      return 'Media header templates are not supported'
+    end
+
+    return 'Header image is not supported for order updates' if @kind != 'abandoned_cart' && header_image_url.present?
+
+    nil
+  end
+
+  def header_format
+    header = Array(@template_def['components']).find { |c| c['type']&.casecmp?('HEADER') }
+    header['format']&.upcase if header
+  end
+
+  def header_image_url
+    (@mapping['header_image_url'] || @mapping[:header_image_url]).to_s.strip
+  end
+
+  def validate_header_image_url
+    url = header_image_url
+    return 'Header image URL is required for this template' if url.blank?
+
+    uri = begin
+      URI.parse(url)
+    rescue URI::InvalidURIError
+      nil
+    end
+    return 'Header image URL must start with https://' unless uri.is_a?(URI::HTTPS) && uri.host.present?
+
+    nil
   end
 
   def check_required_slots

@@ -268,6 +268,20 @@ RSpec.describe Shopify::OrderUpdateService do
         expect(a_request(:post, meta_messages_url_pattern)).to have_been_made.once
         expect(Shopify::OrderNotification.find_by(order_id: '987654', kind: 'confirmed').status).to eq('sent')
       end
+
+      it 'sends milestone notification with no header component' do
+        hook.settings['abandoned_cart']['test_phones'] = [test_phone]
+        hook.save!
+
+        described_class.new(account_id: account.id, topic: 'orders/create', payload: order_payload).perform
+
+        expected_request = a_request(:post, meta_messages_url_pattern).with do |req|
+          body = JSON.parse(req.body)
+          components = body.dig('template', 'components') || []
+          components.none? { |c| c['type'] == 'header' }
+        end
+        expect(expected_request).to have_been_made.once
+      end
     end
 
     context 'with missing phone when test mode is off' do

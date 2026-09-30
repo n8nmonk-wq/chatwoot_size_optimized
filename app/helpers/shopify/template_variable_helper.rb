@@ -96,6 +96,9 @@ module Shopify::TemplateVariableHelper
   def build_template_processed_params(mapping, context)
     processed = { 'header' => {}, 'body' => {}, 'buttons' => [] }
 
+    image_url = mapping['header_image_url'].presence || mapping[:header_image_url].presence
+    processed['header'] = { 'media_url' => image_url, 'media_type' => 'image' } if image_url.present?
+
     (mapping['variables'] || {}).each do |slot_key, source_def|
       value = resolve_template_source(source_def, context)
       return [:error, 'url_host_mismatch'] if value == :url_host_mismatch

@@ -25,6 +25,8 @@ class Shopify::AbandonedCartPayloadBuilder
   end
 
   def build_from_custom_mapping
+    return [:error, 'missing_header_image'] if image_header_missing_url?
+
     context = { checkout: @checkout, hook: @hook, store_domain: store_domain, milestone: 'abandoned_cart' }
     status, processed_params = build_template_processed_params(custom_mapping, context)
     return [:error, processed_params] if status == :error
@@ -123,5 +125,41 @@ class Shopify::AbandonedCartPayloadBuilder
       }
     end
     components
+  end
+
+  def mapping_header_image_url
+    custom_mapping['header_image_url'] || custom_mapping[:header_image_url]
+  end
+
+  def mapping_template_name
+    custom_mapping['template_name'] || custom_mapping[:template_name]
+  end
+
+  def mapping_language
+    (custom_mapping['language'] || custom_mapping[:language] || 'en').to_s
+  end
+
+  def image_header_missing_url?
+    return false if mapping_header_image_url.present?
+
+    template_has_image_header?(find_channel_template)
+  end
+
+  def template_has_image_header?(template)
+    return false unless template
+
+    Array(template['components']).any? do |c|
+      c['type'].to_s.casecmp?('HEADER') && c['format'].to_s.casecmp?('IMAGE')
+    end
+  end
+
+  def find_channel_template
+    templates = @channel&.message_templates || []
+    target_name = mapping_template_name
+    target_lang = mapping_language
+
+    templates.find do |t|
+      t['name'] == target_name && t['language'].to_s.casecmp?(target_lang)
+    end
   end
 end

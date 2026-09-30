@@ -113,6 +113,9 @@
         "TEMPLATE_LABEL": "WhatsApp template",
         "TEMPLATE_PLACEHOLDER": "Select an approved template",
         "MEDIA_NOT_SUPPORTED": "Media header not supported",
+        "HEADER_IMAGE_URL_LABEL": "Header image URL",
+        "HEADER_IMAGE_URL_PLACEHOLDER": "https://example.com/image.png",
+        "HEADER_IMAGE_URL_HELP": "Must be a public https:// link to a JPG or PNG.",
         "VARIABLES_TITLE": "Template variable mappings",
         "SELECT_SOURCE": "Select data source",
         "STATIC_PLACEHOLDER": "Enter custom text"

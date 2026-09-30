@@ -595,6 +595,86 @@ RSpec.describe Shopify::AbandonedCartReminderService do
         expect(reminder.status).to eq('failed')
         expect(reminder.reason).to eq('empty_param:button.0')
       end
+
+      it 'sends image header component when custom mapping has header_image_url and template has IMAGE header' do
+        whatsapp_channel.update!(
+          message_templates: [
+            {
+              'name' => 'image_cart_reminder',
+              'language' => 'en',
+              'status' => 'approved',
+              'components' => [
+                { 'type' => 'HEADER', 'format' => 'IMAGE' },
+                { 'type' => 'BODY', 'text' => 'Hi {{1}}, items: {{2}}, total: {{3}}' },
+                { 'type' => 'BUTTONS', 'buttons' => [{ 'type' => 'URL', 'url' => 'https://example.com/{{1}}' }] }
+              ]
+            }
+          ]
+        )
+
+        hook.settings['abandoned_cart']['template'] = {
+          'template_name' => 'image_cart_reminder',
+          'language' => 'en',
+          'header_image_url' => 'https://cdn.shopify.com/files/biotane_logo.png',
+          'variables' => {
+            'body.1' => 'first_name',
+            'body.2' => 'item_summary',
+            'body.3' => 'total',
+            'button.0' => 'checkout_url_suffix'
+          }
+        }
+        hook.save!
+
+        described_class.new(hook).perform
+
+        expected_request = a_request(:post, meta_messages_url_pattern).with do |req|
+          body = JSON.parse(req.body)
+          components = body.dig('template', 'components') || []
+          header_comp = components.find { |c| c['type'] == 'header' }
+          image_param = header_comp&.dig('parameters')&.find { |p| p['type'] == 'image' }
+          image_param&.dig('image', 'link') == 'https://cdn.shopify.com/files/biotane_logo.png'
+        end
+        expect(expected_request).to have_been_made.once
+
+        reminder = account.shopify_abandoned_checkout_reminders.find_by(checkout_id: checkout_id)
+        expect(reminder.status).to eq('sent')
+      end
+
+      it 'records failed with missing_header_image when template has IMAGE header but mapping has no header_image_url' do
+        whatsapp_channel.update!(
+          message_templates: [
+            {
+              'name' => 'image_cart_reminder',
+              'language' => 'en',
+              'status' => 'approved',
+              'components' => [
+                { 'type' => 'HEADER', 'format' => 'IMAGE' },
+                { 'type' => 'BODY', 'text' => 'Hi {{1}}, items: {{2}}, total: {{3}}' },
+                { 'type' => 'BUTTONS', 'buttons' => [{ 'type' => 'URL', 'url' => 'https://example.com/{{1}}' }] }
+              ]
+            }
+          ]
+        )
+
+        hook.settings['abandoned_cart']['template'] = {
+          'template_name' => 'image_cart_reminder',
+          'language' => 'en',
+          'variables' => {
+            'body.1' => 'first_name',
+            'body.2' => 'item_summary',
+            'body.3' => 'total',
+            'button.0' => 'checkout_url_suffix'
+          }
+        }
+        hook.save!
+
+        described_class.new(hook).perform
+
+        expect(a_request(:post, meta_messages_url_pattern)).not_to have_been_made
+        reminder = account.shopify_abandoned_checkout_reminders.find_by(checkout_id: checkout_id)
+        expect(reminder.status).to eq('failed')
+        expect(reminder.reason).to eq('missing_header_image')
+      end
     end
   end
 end
