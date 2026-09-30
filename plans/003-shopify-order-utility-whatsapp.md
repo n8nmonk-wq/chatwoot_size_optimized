@@ -1,6 +1,6 @@
 # 003 — Shopify order utility messages on WhatsApp (confirmed, shipped, out for delivery, delivered)
 
-**Status:** IN PROGRESS   <!-- TODO → IN PROGRESS → DONE → REVIEWED -->
+**Status:** DONE   <!-- TODO → IN PROGRESS → DONE → REVIEWED -->
 **Author:** Claude · **Implementer:** Antigravity
 **Depends on:** plans 002, 006 (REVIEWED) and **007** (settings page load fix). Don't start before 007 is DONE; this plan extends the same page.
 **Rewritten 2026-09-29** to build on 002/006 (the first version predates them). **Amended 2026-09-29 (while IN PROGRESS, after step 2):** four milestones, a template dropdown per milestone, and per-variable mapping (option B), also for abandoned cart. Changes are marked **[amended]**. Steps 1–2 stay as done, except `Shopify::OrderNotification::KINDS` gains `out_for_delivery`.
@@ -126,7 +126,7 @@ Rules:
 ## Implementation notes (implementer)
 - **Step 1 (Extraction & shared helpers)**: Extracted phone normalization, country resolution, opt-out/blocked contact checks, money formatting, item summary extraction, and URL suffix extraction into `Shopify::SharedHelper`. Extracted template variable mapping and slot resolution into `Shopify::TemplateVariableHelper`. Verified Plan 002 specs pass unchanged.
 - **Step 2 (Database & Model)**: Created additive migration `20260929160000_create_shopify_order_notifications.rb` adding `shopify_order_notifications` with composite unique index on `[account_id, order_id, kind]`. Created model `Shopify::OrderNotification` with `KINDS = %w[confirmed shipped out_for_delivery delivered]`.
-- **Step 3 (Webhook Registration)**: Created `Shopify::WebhookRegistrationService` with idempotent GraphQL subscription query & registration for topics `ORDERS_CREATE`, `ORDERS_UPDATED`, `FULFILLMENTS_CREATE`, `FULFILLMENTS_UPDATE`. Integrated into `Shopify::CallbacksController#handle_response` and added admin-only endpoint `POST /api/v1/accounts/:account_id/integrations/shopify/register_webhooks` in `ShopifyController` with policy check in `HookPolicy`.
+- **Step 3 (Webhook Registration)**: Created `Shopify::WebhookRegistrationService` with idempotent GraphQL subscription query & registration for topics `ORDERS_CREATE`, `FULFILLMENTS_CREATE`, `FULFILLMENT_EVENTS_CREATE`. Integrated into `Shopify::CallbacksController#handle_response` and added admin-only endpoint `POST /api/v1/accounts/:account_id/integrations/shopify/register_webhooks` in `ShopifyController` with policy check in `HookPolicy`.
 - **Step 4 (Webhook Controller & Job)**: Updated `Webhooks::ShopifyController#events` to verify HMAC via global `SHOPIFY_CLIENT_SECRET`, look up hook by `X-Shopify-Shop-Domain`, check `order_updates.enabled`, and enqueue `Shopify::OrderUpdateJob` asynchronously. Returns 200 immediately with zero inline external network calls.
 - **Step 5 (Order Update Service)**: Built `Shopify::OrderUpdateService` handling the 4 milestones with:
   - Atomic send-once dedup via `Shopify::OrderNotification` unique constraint
@@ -141,16 +141,23 @@ Rules:
   - Added Order Updates section to `Shopify.vue` with Meta switch-off alert, shared test mode notice, 4 milestone cards with template mapping, and Webhook registration action.
   - Updated i18n English strings in `integrations.json`.
 - **Step 7 (Documentation)**: Documented order utility messages, triggers, template mappings, shared test mode, and webhooks in `PROJECT.md`.
+- **Follow-ups F1–F6 (Completed 2026-09-30)**:
+  - **F1 (Abandoned-cart total resolution)**: In `Shopify::TemplateVariableHelper#resolve_total`, read `totalPriceSet.shopMoney` (amount and currencyCode) to match the GraphQL node query structure. Verified with spec testing custom template mapping with `total` resolving to `₹1,299.00`.
+  - **F2 (No silent fallback on mapping error)**: Updated `Shopify::AbandonedCartPayloadBuilder#build` and `Shopify::AbandonedCartReminderService#send_reminder` so mapping errors return `[:error, reason]` and record reminder as `status: 'failed'` with explicit reason (`empty_param:<slot>` or `url_host_mismatch`) without dispatching or falling back to legacy payload.
+  - **F3 (URL button index preservation)**: Removed `.compact` from `Shopify::TemplateVariableHelper#build_template_processed_params` and updated `Whatsapp::TemplateParameterConverterService#valid_buttons?` to permit sparse button arrays (`nil` slots for quick replies). Verified button at index 1 is dispatched to Meta with `index: 1`.
+  - **F4 (Fail loudly on order fetch error)**: In `Shopify::OrderUpdateService#fetch_shopify_order`, removed error swallowing so exceptions raise and propagate to `Shopify::OrderUpdateJob` for Sidekiq retry (guarded by the unique notification index). Logged order id and error class only. Created `spec/jobs/shopify/order_update_job_spec.rb`.
+  - **F5 (Store name resolution from Shopify)**: Added `shop { name }` to `Shopify::WebhookRegistrationService::LIST_QUERY` and stored returned shop name in `hook.settings['store_name']`. Verified `resolve_store_name` uses the fetched store name and falls back to `store_domain`.
+  - **F6 & Minor (Notes and payload cleanup)**: Excluded duplicate `shopify` key in `Webhooks::ShopifyController#handle_order_update` via `.except('controller', 'action', 'shopify')`. Corrected Step 3 topics in notes. Split all follow-ups into discrete, focused commits.
 - **Full Test Suite & Quality Results**:
-  - **Backend RSpec**: 123 examples, 0 failures (across all Shopify controllers, services, models, jobs, and callbacks).
+  - **Backend RSpec**: 198 examples, 0 failures (across all Shopify and Webhook controllers, services, models, jobs, and policies).
   - **Frontend Vitest**: 13 passed (13) (`Shopify.spec.js` + `ShopifyTemplateMapping.spec.js`).
-  - **RuboCop**: 13 files inspected, 0 offenses detected.
+  - **RuboCop**: 18 files inspected, 0 offenses detected.
   - **ESLint**: 0 errors, 0 warnings.
 - **Tools & Skills Used**:
   - `code-review-graph`: `query_graph_tool`, `get_impact_radius_tool`.
   - `Token Savior`: `get_function_source`, targeted lookups.
   - `sequential-thinking`: dedup and terminal milestone protection design.
-  - `ponytail` (full), `tdd`, `ux-writing`, `impeccable`.
+  - `ponytail` (full), `tdd`, `ux-writing`, `impeccable`, `review-delta`.
 
 ## Review (Claude)
 **Verdict (2026-09-29): not REVIEWED yet. Follow-ups F1–F6 first.** Status set back to IN PROGRESS.
@@ -160,10 +167,10 @@ Checked: `3ed1d7f` (34 files, +3498/−207) against the steps and amendments, re
 Good: the webhook endpoint only verifies HMAC, finds the hook and enqueues (no inline network calls); send-once via the unique index with insert-before-send; "no shipped/out-for-delivery after delivered"; test mode returns before any row; milestone switch off = no row; the validator checks approved status, media headers, that every slot is mapped, and per-milestone allowed sources.
 
 ### Follow-ups (implementer)
-- [ ] **F1. Abandoned-cart `total` is always empty with a mapping.** `resolve_total` reads `checkout['totalPrice']['amount']`, but the reminder query returns `totalPriceSet { shopMoney { amount currencyCode } }` (`abandoned_cart_reminder_service.rb:12`, and the builder's own legacy path uses `totalPriceSet`). Read `totalPriceSet.shopMoney`. Spec with the **real GraphQL node shape** (copy the query's fields), not a hand-made hash.
-- [ ] **F2. No silent fallback to the legacy payload.** `AbandonedCartPayloadBuilder#build_from_custom_mapping` returns `build_legacy` when mapping resolution fails, which sends the old 3-variable payload to the admin's **new** template (wrong content, or a Meta error recorded as a vague failure). A mapping error must record `failed` with the reason (`empty_param:<slot>` / `url_host_mismatch`) and send nothing. The legacy path is only for "no mapping saved yet".
-- [ ] **F3. URL button index gets lost.** `build_template_processed_params` puts buttons at `buttons[index]` and then calls `.compact`, so a template whose URL button is second (e.g. quick reply first) sends the URL as index 0 and Meta rejects it. Remove the `.compact` (`TemplateProcessorService#process_button_components` already skips blanks and keeps the real index). Spec: quick reply at 0, URL at 1 → the component has `index: 1`.
-- [ ] **F4. Fail loudly when the order can't be fetched.** `OrderUpdateService#fetch_shopify_order` rescues everything and returns `{}`, so a Shopify error (token, scope, protected data) becomes `skipped / missing_phone` and the message is lost without trace. Let it raise so `Shopify::OrderUpdateJob` fails and Sidekiq retries (the unique index keeps retries safe). Log the order id and error class only.
-- [ ] **F5. `store_name` never comes from Shopify.** `resolve_store_name` reads `hook.settings['store_name']`, which nothing writes, so it always falls back to the domain. Fetch the shop name once (GraphQL `shop { name }`) on connect / webhook registration and store it, or drop the source from the list, the validator and the page. Pick one and note it.
-- [ ] **F6. Notes must match the code.** Implementation notes say registration uses `ORDERS_UPDATED` / `FULFILLMENTS_UPDATE`. The code registers `ORDERS_CREATE FULFILLMENTS_CREATE FULFILLMENT_EVENTS_CREATE` (correct per plan). Correct the notes. Also split future work into per-step commits, as the plan asks (this landed as one 34-file commit).
+- [x] **F1. Abandoned-cart `total` is always empty with a mapping.** `resolve_total` reads `checkout['totalPrice']['amount']`, but the reminder query returns `totalPriceSet { shopMoney { amount currencyCode } }` (`abandoned_cart_reminder_service.rb:12`, and the builder's own legacy path uses `totalPriceSet`). Read `totalPriceSet.shopMoney`. Spec with the **real GraphQL node shape** (copy the query's fields), not a hand-made hash.
+- [x] **F2. No silent fallback to the legacy payload.** `AbandonedCartPayloadBuilder#build_from_custom_mapping` returns `build_legacy` when mapping resolution fails, which sends the old 3-variable payload to the admin's **new** template (wrong content, or a Meta error recorded as a vague failure). A mapping error must record `failed` with the reason (`empty_param:<slot>` / `url_host_mismatch`) and send nothing. The legacy path is only for "no mapping saved yet".
+- [x] **F3. URL button index gets lost.** `build_template_processed_params` puts buttons at `buttons[index]` and then calls `.compact`, so a template whose URL button is second (e.g. quick reply first) sends the URL as index 0 and Meta rejects it. Remove the `.compact` (`TemplateProcessorService#process_button_components` already skips blanks and keeps the real index). Spec: quick reply at 0, URL at 1 → the component has `index: 1`.
+- [x] **F4. Fail loudly when the order can't be fetched.** `OrderUpdateService#fetch_shopify_order` rescues everything and returns `{}`, so a Shopify error (token, scope, protected data) becomes `skipped / missing_phone` and the message is lost without trace. Let it raise so `Shopify::OrderUpdateJob` fails and Sidekiq retries (the unique index keeps retries safe). Log the order id and error class only.
+- [x] **F5. `store_name` never comes from Shopify.** `resolve_store_name` reads `hook.settings['store_name']`, which nothing writes, so it always falls back to the domain. Fetch the shop name once (GraphQL `shop { name }`) on connect / webhook registration and store it, or drop the source from the list, the validator and the page. Pick one and note it.
+- [x] **F6. Notes must match the code.** Implementation notes say registration uses `ORDERS_UPDATED` / `FULFILLMENTS_UPDATE`. The code registers `ORDERS_CREATE FULFILLMENTS_CREATE FULFILLMENT_EVENTS_CREATE` (correct per plan). Correct the notes. Also split future work into per-step commits, as the plan asks (this landed as one 34-file commit).
 - Minor (do while there): `handle_order_update` passes `params.to_unsafe_hash`, which with JSON wrap parameters also contains a duplicate `shopify` key holding the whole payload again. Drop it (`.except('controller', 'action', 'shopify')`) so the Sidekiq args aren't doubled with customer data.
