@@ -67,6 +67,25 @@ RSpec.describe Shopify::WebhookRegistrationService do
           'FULFILLMENT_EVENTS_CREATE' => 'created'
         )
       end
+
+      it 'persists shop name from GraphQL response into hook settings' do
+        allow(graphql_client).to receive(:query).with(
+          query: described_class::LIST_QUERY
+        ).and_return(
+          instance_double(
+            ShopifyAPI::Clients::HttpResponse,
+            body: {
+              'data' => {
+                'shop' => { 'name' => 'Biotane Natural' },
+                'webhookSubscriptions' => { 'nodes' => [] }
+              }
+            }
+          )
+        )
+
+        described_class.new(hook).perform
+        expect(hook.reload.settings['store_name']).to eq('Biotane Natural')
+      end
     end
 
     context 'when some subscriptions already exist pointing at callback_url' do

@@ -7,6 +7,9 @@ class Shopify::WebhookRegistrationService
 
   LIST_QUERY = <<~GRAPHQL
     query GetWebhookSubscriptions {
+      shop {
+        name
+      }
       webhookSubscriptions(first: 50) {
         nodes {
           id
@@ -98,8 +101,17 @@ class Shopify::WebhookRegistrationService
     response = graphql_client.query(query: LIST_QUERY)
     validate_graphql_response!(response)
 
+    persist_shop_name(response.body.dig('data', 'shop', 'name'))
+
     nodes = response.body.dig('data', 'webhookSubscriptions', 'nodes') || []
     nodes.filter_map { |node| node['topic'] if matching_callback?(node) }
+  end
+
+  def persist_shop_name(shop_name)
+    return if shop_name.blank?
+
+    @hook.settings = (@hook.settings || {}).merge('store_name' => shop_name)
+    @hook.save!
   end
 
   def matching_callback?(node)

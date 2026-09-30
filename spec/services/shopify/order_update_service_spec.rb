@@ -450,5 +450,59 @@ RSpec.describe Shopify::OrderUpdateService do
         expect(Shopify::OrderNotification.where(order_id: '987654')).to be_empty
       end
     end
+
+    context 'with store_name variable source' do
+      before do
+        store_template = {
+          'name' => 'store_name_template',
+          'language' => language,
+          'status' => 'approved',
+          'components' => [
+            { 'type' => 'BODY', 'text' => 'Welcome to {{1}}, {{2}}!' }
+          ]
+        }
+        channel.update!(message_templates: default_message_templates + [store_template])
+        hook.settings['order_updates']['milestones']['confirmed']['template'] = {
+          'template_name' => 'store_name_template',
+          'language' => language,
+          'variables' => {
+            'body.1' => 'store_name',
+            'body.2' => 'first_name'
+          }
+        }
+      end
+
+      it 'resolves store_name from hook settings store_name when present' do
+        hook.settings['store_name'] = 'Biotane Pure'
+        hook.save!
+
+        described_class.new(account_id: account.id, topic: 'orders/create', payload: order_payload).perform
+
+        expected_req = a_request(:post, meta_messages_url_pattern).with do |req|
+          parsed = JSON.parse(req.body)
+          components = parsed.dig('template', 'components') || []
+          body_comp = components.find { |c| c['type'] == 'body' }
+          params = body_comp['parameters'].map { |p| p['text'] }
+          params == ['Biotane Pure', 'John']
+        end
+        expect(expected_req).to have_been_made.once
+      end
+
+      it 'falls back to store_domain when hook settings store_name is absent' do
+        hook.settings.delete('store_name')
+        hook.save!
+
+        described_class.new(account_id: account.id, topic: 'orders/create', payload: order_payload).perform
+
+        expected_req = a_request(:post, meta_messages_url_pattern).with do |req|
+          parsed = JSON.parse(req.body)
+          components = parsed.dig('template', 'components') || []
+          body_comp = components.find { |c| c['type'] == 'body' }
+          params = body_comp['parameters'].map { |p| p['text'] }
+          params == [shop_domain, 'John']
+        end
+        expect(expected_req).to have_been_made.once
+      end
+    end
   end
 end
