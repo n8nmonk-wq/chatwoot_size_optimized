@@ -14,7 +14,7 @@ class Shopify::AbandonedCartPayloadBuilder
     if custom_mapping.present?
       build_from_custom_mapping
     else
-      build_legacy
+      [:ok, build_legacy]
     end
   end
 
@@ -27,7 +27,7 @@ class Shopify::AbandonedCartPayloadBuilder
   def build_from_custom_mapping
     context = { checkout: @checkout, hook: @hook, store_domain: store_domain, milestone: 'abandoned_cart' }
     status, processed_params = build_template_processed_params(custom_mapping, context)
-    return build_legacy if status == :error
+    return [:error, processed_params] if status == :error
 
     template_params = {
       'name' => custom_mapping['template_name'],
@@ -37,12 +37,13 @@ class Shopify::AbandonedCartPayloadBuilder
     processor = Whatsapp::TemplateProcessorService.new(channel: @channel, template_params: template_params)
     name, namespace, lang_code, processed_parameters = processor.call
 
-    {
+    payload = {
       name: name.presence || custom_mapping['template_name'],
       namespace: namespace,
       lang_code: lang_code.presence || custom_mapping['language'],
       parameters: processed_parameters.presence || []
     }
+    [:ok, payload]
   end
 
   def store_domain

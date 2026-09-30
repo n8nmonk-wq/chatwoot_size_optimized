@@ -524,6 +524,77 @@ RSpec.describe Shopify::AbandonedCartReminderService do
         end
         expect(expected_request).to have_been_made.once
       end
+
+      it 'records failed with empty_param:<slot> and does not send or fall back to legacy when mapping has empty param' do
+        whatsapp_channel.update!(
+          message_templates: [
+            {
+              'name' => 'custom_cart_reminder',
+              'language' => 'en',
+              'status' => 'approved',
+              'components' => [
+                { 'type' => 'BODY', 'text' => 'Hi {{1}}, items: {{2}}, total: {{3}}' },
+                { 'type' => 'BUTTONS', 'buttons' => [{ 'type' => 'URL', 'url' => 'https://example.com/{{1}}' }] }
+              ]
+            }
+          ]
+        )
+
+        hook.settings['abandoned_cart']['template'] = {
+          'template_name' => 'custom_cart_reminder',
+          'language' => 'en',
+          'variables' => {
+            'body.1' => 'first_name',
+            'body.2' => 'item_summary',
+            'body.3' => { 'static' => '' },
+            'button.0' => 'checkout_url_suffix'
+          }
+        }
+        hook.save!
+
+        described_class.new(hook).perform
+
+        expect(a_request(:post, meta_messages_url_pattern)).not_to have_been_made
+        reminder = account.shopify_abandoned_checkout_reminders.find_by(checkout_id: checkout_id)
+        expect(reminder.status).to eq('failed')
+        expect(reminder.reason).to eq('empty_param:body.3')
+      end
+
+      it 'records failed with url_host_mismatch when custom mapping encounters host mismatch' do
+        whatsapp_channel.update!(
+          message_templates: [
+            {
+              'name' => 'custom_cart_reminder',
+              'language' => 'en',
+              'status' => 'approved',
+              'components' => [
+                { 'type' => 'BODY', 'text' => 'Hi {{1}}, items: {{2}}, total: {{3}}' },
+                { 'type' => 'BUTTONS', 'buttons' => [{ 'type' => 'URL', 'url' => 'https://example.com/{{1}}' }] }
+              ]
+            }
+          ]
+        )
+
+        hook.settings['abandoned_cart']['template'] = {
+          'template_name' => 'custom_cart_reminder',
+          'language' => 'en',
+          'variables' => {
+            'body.1' => 'first_name',
+            'body.2' => 'item_summary',
+            'body.3' => 'total',
+            'button.0' => 'order_status_url_suffix'
+          }
+        }
+        hook.save!
+
+        # order_status_url on order is absent or mismatched
+        described_class.new(hook).perform
+
+        expect(a_request(:post, meta_messages_url_pattern)).not_to have_been_made
+        reminder = account.shopify_abandoned_checkout_reminders.find_by(checkout_id: checkout_id)
+        expect(reminder.status).to eq('failed')
+        expect(reminder.reason).to eq('empty_param:button.0')
+      end
     end
   end
 end

@@ -173,7 +173,14 @@ class Shopify::AbandonedCartReminderService
     return if reminder.blank?
 
     builder = Shopify::AbandonedCartPayloadBuilder.new(hook: @hook, checkout: checkout, channel: channel, button_suffix: button_suffix)
-    send_response = channel.send_template(phone, builder.build, nil)
+    status, payload_or_reason = builder.build
+
+    if status == :error
+      reminder.update!(status: 'failed', reason: payload_or_reason)
+      return
+    end
+
+    send_response = channel.send_template(phone, payload_or_reason, nil)
 
     sent = send_response.present?
     reminder.update!(status: sent ? 'sent' : 'failed', sent_at: (Time.current if sent), reason: (sent ? nil : 'send_template_failed'))
