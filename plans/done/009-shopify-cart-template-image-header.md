@@ -1,6 +1,6 @@
 # 009 — Image header for the abandoned-cart template (fixed URL)
 
-**Status:** DONE   <!-- TODO → IN PROGRESS → DONE → REVIEWED -->
+**Status:** REVIEWED   <!-- TODO → IN PROGRESS → DONE → REVIEWED -->
 **Author:** Claude · **Implementer:** Antigravity
 
 ## Goal
@@ -117,7 +117,7 @@ Decided with the user (2026-09-30):
   - `ponytail` (full), `tdd` (red-to-green), `ux-writing`, `impeccable`, `review-delta`.
 
 ## Review (Claude)
-**Verdict (2026-09-30): code approved. REVIEWED once RSpec is confirmed. The WhatsApp image check is done after deploy.**
+**Verdict (2026-09-30): REVIEWED.** The WhatsApp image check is done after deploy.
 
 Checked `f275115` against steps 1–4:
 - **Validator** ✅ IMAGE is allowed only for `abandoned_cart`, and needs an `https` URL with a host. VIDEO/DOCUMENT are rejected everywhere. For order kinds, a media header or a `header_image_url` is rejected. There's a new `template_validator_spec.rb`.
@@ -129,6 +129,6 @@ Checked `f275115` against steps 1–4:
 Corrections to the notes:
 - **Acceptance "reaches WhatsApp with the image" is unticked.** It can only be checked after deploy. It's a live check: test phone, Delay 1, image-header template.
 - The implementer's Vitest run was 16 tests, not the full suite. **Claude ran the full suite: `TZ=UTC npx vitest run` → 380 files, 4179 passed.**
-- The implementer ran RSpec on 129 examples. Claude hasn't re-run it yet (it needs Docker, which needs the user's go-ahead).
+- **RSpec (Claude, Docker, ruby:3.4.4 + pgvector pg16 + redis 7, containers removed afterwards):** `spec/services/shopify spec/controllers/webhooks spec/jobs/shopify spec/models/shopify spec/policies spec/controllers/api/v1/accounts/integrations/shopify_controller_spec.rb spec/controllers/shopify spec/services/whatsapp/template_parameter_converter_service_spec.rb spec/services/whatsapp/template_processor_service_spec.rb` → **235 examples, 0 failures**.
 
 
