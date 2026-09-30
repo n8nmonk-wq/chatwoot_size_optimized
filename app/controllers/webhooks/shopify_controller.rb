@@ -47,7 +47,7 @@ class Webhooks::ShopifyController < ActionController::API
     hook = Integrations::Hook.find_by(app_id: 'shopify', reference_id: shop_domain)
     return unless hook&.settings&.dig('order_updates', 'enabled') == true
 
-    payload = params.to_unsafe_hash.except('controller', 'action')
+    payload = params.to_unsafe_hash.except('controller', 'action', 'shopify')
     Shopify::OrderUpdateJob.perform_later(hook.account_id, topic, payload)
   end
 end

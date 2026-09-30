@@ -108,7 +108,7 @@ RSpec.describe Webhooks::ShopifyController, type: :request do
           end.to have_enqueued_job(Shopify::OrderUpdateJob).with(
             account.id,
             topic,
-            hash_including('id' => 123_456, 'email' => 'customer@example.com')
+            satisfy { |arg| arg['id'] == 123_456 && arg['email'] == 'customer@example.com' && !arg.key?('shopify') }
           )
 
           expect(response).to have_http_status(:ok)
