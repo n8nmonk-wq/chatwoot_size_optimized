@@ -193,10 +193,13 @@ class Shopify::OrderUpdateService
     session = ShopifyAPI::Auth::Session.new(shop: @hook.reference_id, access_token: @hook.shopify_access_token)
     client = ShopifyAPI::Clients::Rest::Admin.new(session: session)
     response = client.get(path: "orders/#{order_id}.json")
-    response.body['order'] || {}
+    order = response.body['order']
+    raise StandardError, "Order #{order_id} not found in response" if order.blank?
+
+    order
   rescue StandardError => e
-    Rails.logger.error("[Shopify::OrderUpdateService] Error fetching order #{order_id}: #{e.message}")
-    {}
+    Rails.logger.error("[Shopify::OrderUpdateService] Error fetching order #{order_id}: #{e.class.name}")
+    raise
   end
 
   def setup_shopify_context

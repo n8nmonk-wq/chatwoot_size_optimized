@@ -421,5 +421,34 @@ RSpec.describe Shopify::OrderUpdateService do
         expect(expected_req).to have_been_made.once
       end
     end
+
+    context 'when fetching order from Shopify fails' do
+      let(:fulfillment_payload) do
+        {
+          'id' => 111,
+          'order_id' => 987_654,
+          'tracking_number' => 'TRK123',
+          'tracking_company' => 'BlueDart'
+        }
+      end
+
+      before do
+        stub_request(:get, shopify_order_url_pattern).to_return(
+          status: 403,
+          headers: { 'Content-Type' => 'application/json' },
+          body: { 'errors' => 'Forbidden' }.to_json
+        )
+      end
+
+      it 'raises error, logs order id and error class only, and does not record skipped row' do
+        expect(Rails.logger).to receive(:error).with('[Shopify::OrderUpdateService] Error fetching order 987654: ShopifyAPI::Errors::HttpResponseError')
+
+        expect do
+          described_class.new(account_id: account.id, topic: 'fulfillments/create', payload: fulfillment_payload).perform
+        end.to raise_error(ShopifyAPI::Errors::HttpResponseError)
+
+        expect(Shopify::OrderNotification.where(order_id: '987654')).to be_empty
+      end
+    end
   end
 end
