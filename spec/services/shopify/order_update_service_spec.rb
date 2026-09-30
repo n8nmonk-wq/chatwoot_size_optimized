@@ -377,5 +377,49 @@ RSpec.describe Shopify::OrderUpdateService do
         expect(Shopify::OrderNotification.find_by(order_id: '987654', kind: 'confirmed').status).to eq('sent')
       end
     end
+
+    context 'with button following quick reply (quick reply at 0, URL at 1)' do
+      before do
+        button_template = {
+          'name' => 'button_index_template',
+          'language' => language,
+          'status' => 'approved',
+          'components' => [
+            { 'type' => 'BODY', 'text' => 'Hello {{1}}, order {{2}} total {{3}}' },
+            {
+              'type' => 'BUTTONS',
+              'buttons' => [
+                { 'type' => 'QUICK_REPLY', 'text' => 'Support' },
+                { 'type' => 'URL', 'text' => 'Track', 'url' => 'https://test-store.myshopify.com/{{1}}' }
+              ]
+            }
+          ]
+        }
+        channel.update!(message_templates: default_message_templates + [button_template])
+        hook.settings['order_updates']['milestones']['confirmed']['template'] = {
+          'template_name' => 'button_index_template',
+          'language' => language,
+          'variables' => {
+            'body.1' => 'first_name',
+            'body.2' => 'order_name',
+            'body.3' => 'total',
+            'button.1' => 'order_status_url_suffix'
+          }
+        }
+        hook.save!
+      end
+
+      it 'preserves button index 1 when sending to Meta' do
+        described_class.new(account_id: account.id, topic: 'orders/create', payload: order_payload).perform
+
+        expected_req = a_request(:post, meta_messages_url_pattern).with do |req|
+          parsed = JSON.parse(req.body)
+          components = parsed.dig('template', 'components') || []
+          btn_comp = components.find { |c| c['type'] == 'button' }
+          btn_comp.present? && btn_comp['index'] == 1 && btn_comp['sub_type'] == 'url'
+        end
+        expect(expected_req).to have_been_made.once
+      end
+    end
   end
 end

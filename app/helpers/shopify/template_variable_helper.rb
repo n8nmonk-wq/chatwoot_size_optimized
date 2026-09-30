@@ -104,7 +104,6 @@ module Shopify::TemplateVariableHelper
       populate_processed_slot(processed, slot_key, value)
     end
 
-    processed['buttons'] = processed['buttons'].compact
     [:ok, processed]
   end
 
