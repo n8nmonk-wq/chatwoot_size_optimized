@@ -441,7 +441,8 @@ RSpec.describe Shopify::OrderUpdateService do
       end
 
       it 'raises error, logs order id and error class only, and does not record skipped row' do
-        expect(Rails.logger).to receive(:error).with('[Shopify::OrderUpdateService] Error fetching order 987654: ShopifyAPI::Errors::HttpResponseError')
+        expected_log = '[Shopify::OrderUpdateService] Error fetching order 987654: ShopifyAPI::Errors::HttpResponseError'
+        expect(Rails.logger).to receive(:error).with(expected_log)
 
         expect do
           described_class.new(account_id: account.id, topic: 'fulfillments/create', payload: fulfillment_payload).perform

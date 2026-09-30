@@ -181,12 +181,15 @@ class Shopify::AbandonedCartReminderService
     end
 
     send_response = channel.send_template(phone, payload_or_reason, nil)
-
-    sent = send_response.present?
-    reminder.update!(status: sent ? 'sent' : 'failed', sent_at: (Time.current if sent), reason: (sent ? nil : 'send_template_failed'))
+    update_reminder_result(reminder, send_response)
   rescue StandardError => e
     Rails.logger.error("[Shopify::AbandonedCartReminderService] Error sending reminder for #{checkout_id}: #{e.message}")
     reminder&.update(status: 'failed', reason: e.message.truncate(255))
+  end
+
+  def update_reminder_result(reminder, send_response)
+    sent = send_response.present?
+    reminder.update!(status: sent ? 'sent' : 'failed', sent_at: (Time.current if sent), reason: (sent ? nil : 'send_template_failed'))
   end
 
   def record_reminder(checkout_id, status, reason = nil)
