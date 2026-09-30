@@ -174,3 +174,17 @@ Good: the webhook endpoint only verifies HMAC, finds the hook and enqueues (no i
 - [x] **F5. `store_name` never comes from Shopify.** `resolve_store_name` reads `hook.settings['store_name']`, which nothing writes, so it always falls back to the domain. Fetch the shop name once (GraphQL `shop { name }`) on connect / webhook registration and store it, or drop the source from the list, the validator and the page. Pick one and note it.
 - [x] **F6. Notes must match the code.** Implementation notes say registration uses `ORDERS_UPDATED` / `FULFILLMENTS_UPDATE`. The code registers `ORDERS_CREATE FULFILLMENTS_CREATE FULFILLMENT_EVENTS_CREATE` (correct per plan). Correct the notes. Also split future work into per-step commits, as the plan asks (this landed as one 34-file commit).
 - Minor (do while there): `handle_order_update` passes `params.to_unsafe_hash`, which with JSON wrap parameters also contains a duplicate `shopify` key holding the whole payload again. Drop it (`.except('controller', 'action', 'shopify')`) so the Sidekiq args aren't doubled with customer data.
+
+### Re-review (2026-09-30): code approved, RSpec still unverified
+Checked `fdbe543..4abbc54` (7 commits, one per follow-up) against F1–F6 and the minor:
+- **F1** ✅ `resolve_total` reads `totalPriceSet.shopMoney`; spec uses the real node shape (`abandoned_cart_reminder_service_spec.rb:44`) and asserts `₹1,299.00`.
+- **F2** ✅ `AbandonedCartPayloadBuilder#build` returns `[:ok|:error, …]`; its only caller (`AbandonedCartReminderService`, `:175`) records `failed` + reason and sends nothing. Legacy only when no mapping is saved.
+- **F3** ✅ `.compact` removed. `TemplateProcessorService#process_button_components` skips `nil` slots and keeps the real index. `TemplateParameterConverterService#valid_buttons?` now accepts `nil` slots. Its other caller, `Liquidable#whatsapp_template_body_params`, only reads `body`, so it's unaffected. Spec asserts `index == 1` (`order_update_service_spec.rb:381-419`).
+- **F4** ✅ `fetch_shopify_order` raises and logs the error class only. The fetch runs **before** `create_initial_notification`, so a Sidekiq retry isn't blocked by the unique index.
+- **F5** ✅ `shop { name }` is added to `LIST_QUERY` and saved to `settings['store_name']` on registration.
+- **F6 / minor** ✅ notes corrected, per-follow-up commits, duplicate `shopify` key dropped.
+- Nit (no action needed): the spec titled "records failed with url_host_mismatch" actually asserts `empty_param:button.0`, so no spec covers a real `url_host_mismatch`.
+
+Tools: `build_or_update_graph_tool` (incremental from `a9ae7e1`, 14 files) ✅. `get_impact_radius_tool` **failed** twice (the tool-safety check returned no verdict), so callers were traced by grep instead (listed above). Token Savior `switch_project` ✅.
+
+**RSpec not run by Claude, for the second time:** there's no Ruby on the Windows host, and Docker is used only when the user says so. The implementer reports 198/0. The follow-ups don't touch any JS. **REVIEWED once RSpec is confirmed green.**
