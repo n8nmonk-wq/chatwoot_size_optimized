@@ -485,12 +485,27 @@ RSpec.describe Shopify::AbandonedCartReminderService do
       end
 
       it 'uses custom template mapping when configured' do
+        whatsapp_channel.update!(
+          message_templates: [
+            {
+              'name' => 'custom_cart_reminder',
+              'language' => 'en',
+              'status' => 'approved',
+              'components' => [
+                { 'type' => 'BODY', 'text' => 'Hi {{1}}, items: {{2}}, total: {{3}}' },
+                { 'type' => 'BUTTONS', 'buttons' => [{ 'type' => 'URL', 'url' => 'https://example.com/{{1}}' }] }
+              ]
+            }
+          ]
+        )
+
         hook.settings['abandoned_cart']['template'] = {
           'template_name' => 'custom_cart_reminder',
           'language' => 'en',
           'variables' => {
             'body.1' => 'first_name',
             'body.2' => 'item_summary',
+            'body.3' => 'total',
             'button.0' => 'checkout_url_suffix'
           }
         }
@@ -502,7 +517,10 @@ RSpec.describe Shopify::AbandonedCartReminderService do
 
         expected_request = a_request(:post, meta_messages_url_pattern).with do |req|
           body = JSON.parse(req.body)
-          body['template']['name'] == 'custom_cart_reminder'
+          components = body.dig('template', 'components') || []
+          body_comp = components.find { |c| c['type'] == 'body' }
+          params = body_comp['parameters'].map { |p| p['text'] }
+          body['template']['name'] == 'custom_cart_reminder' && params == ['Aarav', 'Biotane Herbal Shampoo and 1 more item', '₹1,299.00']
         end
         expect(expected_request).to have_been_made.once
       end

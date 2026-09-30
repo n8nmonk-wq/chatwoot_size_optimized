@@ -53,8 +53,12 @@ module Shopify::TemplateVariableHelper
   end
 
   def resolve_total(context)
-    amount = context.dig(:order, 'total_price') || context.dig(:checkout, 'totalPrice', 'amount')
-    currency = context.dig(:order, 'currency') || context.dig(:checkout, 'totalPrice', 'currencyCode')
+    amount = context.dig(:order, 'total_price') ||
+             context.dig(:checkout, 'totalPriceSet', 'shopMoney', 'amount') ||
+             context.dig(:checkout, 'totalPrice', 'amount')
+    currency = context.dig(:order, 'currency') ||
+               context.dig(:checkout, 'totalPriceSet', 'shopMoney', 'currencyCode') ||
+               context.dig(:checkout, 'totalPrice', 'currencyCode')
     format_total_price(amount, currency)
   end
 
